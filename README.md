@@ -1,1 +1,1 @@
-## Study Tool for HPC Subject. Only here for Github Pages. Vibe Coded, I admit Shameful.
+## Study Tool for HPC Subject. Only here for Github Pages. Vibe Coded, I admit Shameful. Eh.
