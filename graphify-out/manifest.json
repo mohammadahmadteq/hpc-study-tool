@@ -1,0 +1,127 @@
+{
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/eslint.config.js": {
+    "mtime": 1782579391.0887032,
+    "ast_hash": "0355276bc79439afe3c53e3a2470ca1e",
+    "semantic_hash": "0355276bc79439afe3c53e3a2470ca1e"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/package.json": {
+    "mtime": 1782580063.965762,
+    "ast_hash": "680d49a34609b4a4917f6007502dadc9",
+    "semantic_hash": "680d49a34609b4a4917f6007502dadc9"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/App.tsx": {
+    "mtime": 1782841896.047862,
+    "ast_hash": "22b22037e968511234837dcce9c5da4c",
+    "semantic_hash": "22b22037e968511234837dcce9c5da4c"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/Chapter2.tsx": {
+    "mtime": 1782841088.4016335,
+    "ast_hash": "7984fc58c007b1f8b44cb0de5ec57151",
+    "semantic_hash": "7984fc58c007b1f8b44cb0de5ec57151"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/Chapter2_2.tsx": {
+    "mtime": 1782841856.9267058,
+    "ast_hash": "691370f4c1ce957a31a9e274244bb6e4",
+    "semantic_hash": "691370f4c1ce957a31a9e274244bb6e4"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/Chapter3.tsx": {
+    "mtime": 1782581704.5562458,
+    "ast_hash": "e47e3994d9b1e3405b94beac80c403d4",
+    "semantic_hash": "e47e3994d9b1e3405b94beac80c403d4"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/ChapterSelect.tsx": {
+    "mtime": 1782842105.2464128,
+    "ast_hash": "ca1336e1042108d04111ccc8bbe663ff",
+    "semantic_hash": "ca1336e1042108d04111ccc8bbe663ff"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/badge.tsx": {
+    "mtime": 1782580424.6778178,
+    "ast_hash": "497d45e789e04e1a3263b4edbd982da6",
+    "semantic_hash": "497d45e789e04e1a3263b4edbd982da6"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/button.tsx": {
+    "mtime": 1782580424.6779141,
+    "ast_hash": "d5087d8fbd2a08c21e234d2797abb5da",
+    "semantic_hash": "d5087d8fbd2a08c21e234d2797abb5da"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/card.tsx": {
+    "mtime": 1782580424.6779926,
+    "ast_hash": "d0f2f9f62a7ff989b19ec86b5aa9e3fb",
+    "semantic_hash": "d0f2f9f62a7ff989b19ec86b5aa9e3fb"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/progress.tsx": {
+    "mtime": 1782580424.6777067,
+    "ast_hash": "379bf91f65fba1d78739a3e49f2c40e4",
+    "semantic_hash": "379bf91f65fba1d78739a3e49f2c40e4"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/lib/utils.ts": {
+    "mtime": 1782580099.453447,
+    "ast_hash": "9a4cc6f9f3155ffdc1fa7c2c097f6429",
+    "semantic_hash": "9a4cc6f9f3155ffdc1fa7c2c097f6429"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/main.tsx": {
+    "mtime": 1782579391.0885506,
+    "ast_hash": "787e5a07efeb2bf6209d5937195f2f68",
+    "semantic_hash": "787e5a07efeb2bf6209d5937195f2f68"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/tsconfig.app.json": {
+    "mtime": 1782580403.2513618,
+    "ast_hash": "9349c4967c68a9ba8fa3f32acde5607e",
+    "semantic_hash": "9349c4967c68a9ba8fa3f32acde5607e"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/tsconfig.json": {
+    "mtime": 1782579391.0886264,
+    "ast_hash": "a3d39fa780ebff65444de257f291ce6c",
+    "semantic_hash": "a3d39fa780ebff65444de257f291ce6c"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/tsconfig.node.json": {
+    "mtime": 1782579391.0886612,
+    "ast_hash": "f9cb81ddcea69ffdab672fc8c48dca66",
+    "semantic_hash": "f9cb81ddcea69ffdab672fc8c48dca66"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/vite.config.ts": {
+    "mtime": 1782580077.1256616,
+    "ast_hash": "6aa8047ceeadde5357d48ef427f54b24",
+    "semantic_hash": "6aa8047ceeadde5357d48ef427f54b24"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/CLAUDE.md": {
+    "mtime": 1782840790.0297024,
+    "ast_hash": "db31aff63390d955e119b2d3721d7785",
+    "semantic_hash": "db31aff63390d955e119b2d3721d7785"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/README.md": {
+    "mtime": 1782579391.08904,
+    "ast_hash": "9b29c5addc63360d0eee180ef76cc5d5",
+    "semantic_hash": "9b29c5addc63360d0eee180ef76cc5d5"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/index.html": {
+    "mtime": 1782579391.0879831,
+    "ast_hash": "1af08b84ac4e88bf1f81d578d3d15644",
+    "semantic_hash": "1af08b84ac4e88bf1f81d578d3d15644"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/public/favicon.svg": {
+    "mtime": 1782579391.0881705,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/public/icons.svg": {
+    "mtime": 1782579391.0882125,
+    "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
+    "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/assets/hero.png": {
+    "mtime": 1782579391.0883994,
+    "ast_hash": "aead493361b27e7510691c5d7072dfc1",
+    "semantic_hash": "aead493361b27e7510691c5d7072dfc1"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/assets/react.svg": {
+    "mtime": 1782579391.0884407,
+    "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": "f0402b67b6ce880f65666bb49e841696"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/assets/vite.svg": {
+    "mtime": 1782579391.0884771,
+    "ast_hash": "9960a24288958394ac50e57ff638b036",
+    "semantic_hash": "9960a24288958394ac50e57ff638b036"
+  }
+}
