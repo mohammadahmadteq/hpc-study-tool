@@ -13,6 +13,14 @@ import VectorizationStudyTool from './Chapter3_2'
 import ArrayDependenceStudyTool from './Chapter3_3'
 import DependenceSolverStudyTool from './Chapter3_4'
 import StatementReorderingStudyTool from './Chapter4'
+import LoopFusionStudyTool from './Chapter4_2'
+import LoopDistributionStudyTool from './Chapter4_3'
+import LoopInterchangeStudyTool from './Chapter4_4'
+import LoopReversalStudyTool from './Chapter4_5'
+import LoopSkewingStudyTool from './Chapter4_6'
+import StripMiningStudyTool from './Chapter4_7'
+import LoopTilingStudyTool from './Chapter4_8'
+import LocalityStudyTool from './Chapter4_9'
 
 export default function App() {
   const [view, setView] = useState<string | null>(null)
@@ -43,6 +51,14 @@ export default function App() {
   if (view === '3.3') return wrap(<ArrayDependenceStudyTool />)
   if (view === '3.4') return wrap(<DependenceSolverStudyTool />)
   if (view === '4.1') return wrap(<StatementReorderingStudyTool />)
+  if (view === '4.2') return wrap(<LoopFusionStudyTool />)
+  if (view === '4.3') return wrap(<LoopDistributionStudyTool />)
+  if (view === '4.4') return wrap(<LoopInterchangeStudyTool />)
+  if (view === '4.5') return wrap(<LoopReversalStudyTool />)
+  if (view === '4.6') return wrap(<LoopSkewingStudyTool />)
+  if (view === '4.7') return wrap(<StripMiningStudyTool />)
+  if (view === '4.8') return wrap(<LoopTilingStudyTool />)
+  if (view === '4.9') return wrap(<LocalityStudyTool />)
 
   return <ChapterSelect onSelect={setView} />
 }

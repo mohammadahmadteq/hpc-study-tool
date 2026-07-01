@@ -134,6 +134,62 @@ const chapters: Chapter[] = [
         description:
           'The legality rule (preserve all dependences), statement reordering for spatial locality with the data dependence graph, loop unswitching of invariant conditionals, and loop peeling / splitting.',
       },
+      {
+        id: '4.2',
+        label: '§4.2',
+        title: 'Loop Fusion',
+        description:
+          'Combining adjacent same-bound loops into one for temporal locality: advantages vs. the instruction-locality drawback, the three legality conditions, the c[i+1] dependence trap (body-2 → body-1), and peeling loops into fusable shape with adjusted induction variables.',
+      },
+      {
+        id: '4.3',
+        label: '§4.3',
+        title: 'Loop Distribution (Fission)',
+        description:
+          'The inverse of fusion: split one loop into several for instruction-cache and data locality. Build the dependence graph, collapse cycles into strongly connected components (which must stay together), and emit one loop per SCC in topological order — with nested loops handled inside-out.',
+      },
+      {
+        id: '4.4',
+        label: '§4.4',
+        title: 'Loop Interchange',
+        description:
+          'Swapping nested loops for parallelism or cache locality. The legality rule via direction vectors — interchange is incorrect only for (<,>) — an interactive checker, and adjusting non-rectangular (triangular) bounds with min/max so the iteration space is preserved.',
+      },
+      {
+        id: '4.5',
+        label: '§4.5',
+        title: 'Loop Reversal',
+        description:
+          'Running a loop backward: legal only when it carries no dependence (reversal negates every distance), used as an enabler — reversing both loops turns a forward c[i+1] reference into a satisfied backward one so fusion becomes legal.',
+      },
+      {
+        id: '4.6',
+        label: '§4.6',
+        title: 'Loop Skewing',
+        description:
+          'How normalization can manufacture the forbidden (<,>) direction and block interchange, and how skewing — (i,j) → (i, j+f·i), so (d1,d2) → (d1, d2+f·d1) — removes it. Full worked derivation of the skewed indices, bounds, and the follow-up interchange with max/min bounds.',
+      },
+      {
+        id: '4.7',
+        label: '§4.7',
+        title: 'Strip Mining',
+        description:
+          'Split one loop into an outer block loop and an inner strip loop of size s (with min() for the partial tail) to feed a vector processor. Re-express a distance d as (d div s, d mod s), plus the boundary-crossing vector (d div s+1, d mod s−s) when d mod s ≠ 0 — shown on the iteration line.',
+      },
+      {
+        id: '4.8',
+        label: '§4.8',
+        title: 'Loop Tiling',
+        description:
+          'Strip mining generalized to nested loops: rectangular tiles (size ts, offset to) for cache blocking. The ⌊(lo−to)/ts⌋·ts+to first/last-tile formulas cover the space exactly, distances adapt as in strip mining, and a follow-up interchange pushes the within-tile loops innermost — walked through the triangular 2-D example.',
+      },
+      {
+        id: '4.9',
+        label: '§4.9',
+        title: 'Optimizing for Locality',
+        description:
+          'The capstone: the memory hierarchy and temporal/spatial/sequential locality; making the step-1 or loop-invariant loop innermost; the affine access model x[A·i+c] with temporal (A·d=0) and spatial reuse factors and data footprints; group reuse across multiple references; and choosing the loop order — with the matrix-multiplication case study.',
+      },
     ],
   },
 ]
