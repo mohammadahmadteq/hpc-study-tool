@@ -192,6 +192,29 @@ const chapters: Chapter[] = [
       },
     ],
   },
+  {
+    number: 5,
+    title: 'Introduction to OpenMP',
+    description:
+      'The portable standard for shared-memory parallelism: the fork–join model, parallel regions and work-sharing, scheduling, and the coordination/synchronization constructs that keep shared data correct.',
+    available: true,
+    sections: [
+      {
+        id: '5.1',
+        label: '§5.1',
+        title: 'Control of the parallel execution',
+        description:
+          'The fork–join model and SPMD execution; #pragma omp parallel with num_threads and shared/private/default clauses; runtime functions for thread ids and counts; parallel loops with static/dynamic/guided/runtime scheduling, nowait and nesting; the sections and single work-sharing constructs, syntactic abbreviations, and nested-parallelism control.',
+      },
+      {
+        id: '5.2',
+        label: '§5.2',
+        title: 'Coordination and Synchronization',
+        description:
+          'Mutual exclusion with critical (named/unnamed) and atomic; the reduction clause and its private-copy semantics; event synchronization with barrier and the flush memory-consistency model; the master directive; simple and nestable lock variables (set/unset/test); and wall-clock timing with omp_get_wtime.',
+      },
+    ],
+  },
 ]
 
 interface ChapterSelectProps {

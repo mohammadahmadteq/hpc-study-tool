@@ -21,6 +21,8 @@ import LoopSkewingStudyTool from './Chapter4_6'
 import StripMiningStudyTool from './Chapter4_7'
 import LoopTilingStudyTool from './Chapter4_8'
 import LocalityStudyTool from './Chapter4_9'
+import OpenMPStudyTool from './Chapter5'
+import SynchronizationStudyTool from './Chapter5_2'
 
 export default function App() {
   const [view, setView] = useState<string | null>(null)
@@ -59,6 +61,8 @@ export default function App() {
   if (view === '4.7') return wrap(<StripMiningStudyTool />)
   if (view === '4.8') return wrap(<LoopTilingStudyTool />)
   if (view === '4.9') return wrap(<LocalityStudyTool />)
+  if (view === '5.1') return wrap(<OpenMPStudyTool />)
+  if (view === '5.2') return wrap(<SynchronizationStudyTool />)
 
   return <ChapterSelect onSelect={setView} />
 }
