@@ -427,40 +427,58 @@ const FullSection: React.FC = () => (
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.6, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.6, easy → hardest — all on <em>fresh</em> code, not the lecture examples. Q1 is
+      fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Skew to enable interchange"
+      title="Find the minimal skew — three dependences at once"
       statement={
         <>
           <p className="mb-2">
-            A nest has dependence distances <Code>(1, 1)</Code> and <Code>(1, −1)</Code>. Find the smallest skew factor{' '}
-            <Code>f</Code> that makes loop interchange legal, and give the resulting distances.
+            A nest has <em>three</em> dependences with distances <Code>(1, 0)</Code>, <Code>(1, −3)</Code>, and{' '}
+            <Code>(2, −1)</Code>. Find the smallest integer skew factor <Code>f</Code> that clears <em>every</em>{' '}
+            <Code>(&lt;,&gt;)</Code> simultaneously, and give the resulting distances.
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            Interchange fails because <Code>(1,−1)</Code> is <Code>(&lt;,&gt;)</Code>. Skewing maps{' '}
-            <Code>(d₁,d₂) → (d₁, d₂ + f·d₁)</Code>. Apply to both:
+            <strong>Step 1 — who's blocking?</strong> A distance <Code>(d₁,d₂)</Code> is <Code>(&lt;,&gt;)</Code> iff{' '}
+            <Code>d₁ &gt; 0</Code> and <Code>d₂ &lt; 0</Code>. That rules in <Code>(1,−3)</Code> and{' '}
+            <Code>(2,−1)</Code>; <Code>(1,0)</Code> is already fine (<Code>d₂ = 0</Code> is not <Code>&lt;</Code>).
+          </p>
+          <p className="text-sm mb-1">
+            <strong>Step 2 — skewing formula</strong> <Code>(d₁,d₂) → (d₁, d₂+f·d₁)</Code>. This applies to{' '}
+            <em>every</em> dependence, not only the blockers — <Code>(1,0)</Code> will change value too, it just never
+            becomes unsafe (its <Code>d₂</Code> starts at 0, and <Code>f·d₁ ≥ 0</Code> for <Code>f,d₁ ≥ 0</Code> only
+            ever pushes it up). For each blocker, solve <Code>d₂ + f·d₁ ≥ 0</Code>, i.e. <Code>f ≥ −d₂/d₁</Code>, and
+            round up (integer factor):
           </p>
           <Table
-            head={['f', '(1,1) →', '(1,−1) →', 'legal?']}
+            head={['Dependence', 'Need f ≥', 'at f=2', 'at f=3']}
             rows={[
-              ['0', <Code>(1,1)</Code>, <Bad>(1,−1)</Bad>, <Bad>no</Bad>],
-              ['1', <Code>(1,2)</Code>, <Code>(1,0)</Code>, <Good>yes</Good>],
+              [<Code>(1,0)</Code>, 'any f (safe already)', <Code>(1,2)</Code>, <Code>(1,3)</Code>],
+              [<Code>(1,−3)</Code>, <Code>3/1 = 3</Code>, <Bad>(1,−1)</Bad>, <Good>(1,0)</Good>],
+              [<Code>(2,−1)</Code>, <Code>1/2 = 0.5 → 1</Code>, <Good>(2,3)</Good>, <Good>(2,5)</Good>],
             ]}
           />
+          <p className="text-sm mb-1">
+            The <strong>binding constraint</strong> is the largest requirement across all dependences —{' '}
+            <Code>(1,−3)</Code> needs <Code>f ≥ 3</Code>, which also satisfies <Code>(2,−1)</Code>'s weaker{' '}
+            <Code>f ≥ 1</Code>. At <Code>f = 2</Code> the second dependence is still <Code>(1,−1) = (&lt;,&gt;)</Code> —{' '}
+            <Bad>not enough</Bad>.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>f = 1.</Good> The distances become <Code>(1,2)</Code> and <Code>(1,0)</Code> — no <Code>(&lt;,&gt;)</Code>{' '}
-            remains, so after skewing the loops can be interchanged. (This is the PDF's example{' '}
-            <Code>a[i][j]=0.5·(a[i−1][j−1]+a[i−1][j+1])</Code>.)
+            <Good>f = 3.</Good> Results: <Code>(1,3)</Code>, <Code>(1,0)</Code>, <Code>(2,5)</Code> — no{' '}
+            <Code>(&lt;,&gt;)</Code> survives. <strong>Pattern:</strong> compute each dependence's own minimal{' '}
+            <Code>f</Code>, then take the <strong>maximum</strong> over all of them — one skew factor must satisfy every
+            dependence at once, and remember it re-scales <em>all</em> distances, not just the ones you were worried
+            about.
           </Panel>
         </>
       }
@@ -469,26 +487,31 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={2}
       diff="Easy"
-      title="Why does normalization matter?"
+      title="A nest where skewing is not needed at all"
       statement={
         <>
           <p className="mb-2">
-            Before normalization a nest has distances <Code>(0,1)</Code> and <Code>(1,0)</Code> (interchangeable). After
-            normalization they are <Code>(0,1)</Code> and <Code>(1,−1)</Code>. What happened, and what is the general
-            lesson?
+            A nest has distances <Code>(1, 2)</Code> and <Code>(0, 3)</Code>. Is skewing necessary before interchange?
+            Justify, and state what skewing with <Code>f = 5</Code> would do to it anyway (harmless or harmful?).
           </p>
         </>
       }
       solution={
         <>
-          <Panel className="text-sm leading-relaxed">
-            Normalization rewrote the index expressions, and the second distance changed from <Code>(1,0)</Code> to{' '}
-            <Code>(1,−1)</Code> = <Code>(&lt;,&gt;)</Code> — the one direction vector for which interchange is illegal. So
-            the normalized nest can <Bad>no longer</Bad> be interchanged.
-            <div className="mt-1">
-              <strong>Lesson:</strong> normalization is not free — it can <em>prevent</em> loop interchange. Loop skewing
-              is the counter-move that restores it.
-            </div>
+          <p className="text-sm mb-1">
+            Directions: <Code>(1,2) → (&lt;,&lt;)</Code>, <Code>(0,3) → (=,&lt;)</Code>. Neither is{' '}
+            <Code>(&lt;,&gt;)</Code> — <strong>interchange is already legal</strong>, no skew required.
+          </p>
+          <p className="text-sm mb-1">
+            Applying <Code>f = 5</Code> anyway: <Code>(1,2) → (1, 2+5) = (1,7)</Code>, still <Code>(&lt;,&lt;)</Code>;{' '}
+            <Code>(0,3) → (0, 3+0) = (0,3)</Code>, unchanged (its <Code>d₁ = 0</Code>, so skewing never touches it).
+          </p>
+          <Panel className="text-sm leading-relaxed mt-1">
+            <Good>Harmless but pointless.</Good> Skewing a dependence that is already legal can never turn it{' '}
+            <em>into</em> <Code>(&lt;,&gt;)</Code> — the formula only ever <em>adds</em> a non-negative amount (for{' '}
+            <Code>f ≥ 0</Code>, <Code>d₁ ≥ 0</Code>) to <Code>d₂</Code>, so a non-negative <Code>d₂</Code> stays
+            non-negative. It does, however, cost you: the loop bounds still get the <Code>max/min</Code> parallelogram
+            treatment for no benefit. <strong>Only skew dependences that are actually broken.</strong>
           </Panel>
         </>
       }
@@ -497,38 +520,36 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={3}
       diff="Medium"
-      title="Compute skewed distances"
+      title="Skewing can go too far — check both ends"
       statement={
         <>
           <p className="mb-2">
-            A nest has distances <Code>(1, −2)</Code> and <Code>(2, −1)</Code>. (a) Which block interchange? (b) Give the
-            distances after skewing with <Code>f = 1</Code> and with <Code>f = 2</Code>. (c) What is the smallest{' '}
-            <Code>f</Code> that makes interchange legal?
+            A nest has two dependences: <Code>(1, −4)</Code> and <Code>(3, 2)</Code>. (a) Find the minimal{' '}
+            <Code>f</Code>. (b) Show that <Code>f</Code> can also be <em>too small</em> or (for this pair) needlessly
+            large — is there an upper limit on a "safe" <Code>f</Code>, or can you pick any <Code>f</Code> above the
+            minimum?
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>(a)</strong> Both are <Code>(&lt;,&gt;)</Code> (positive outer, negative inner) ⇒ both block
-            interchange.
+            <strong>(a)</strong> Only <Code>(1,−4)</Code> is <Code>(&lt;,&gt;)</Code>; it needs{' '}
+            <Code>f ≥ 4</Code>. Check <Code>(3,2)</Code> is unaffected in sign for any <Code>f ≥ 0</Code> (already{' '}
+            <Code>d₂ &gt; 0</Code>, and skewing only adds a non-negative amount) — so the binding constraint is{' '}
+            <Code>f = 4</Code>: <Code>(1,−4) → (1,0)</Code>, <Code>(3,2) → (3, 2+12) = (3,14)</Code>.
           </p>
-          <Table
-            head={['original', 'f = 1', 'f = 2']}
-            rows={[
-              [<Code>(1, −2)</Code>, <Code>(1, −1)</Code>, <Code>(1, 0)</Code>],
-              [<Code>(2, −1)</Code>, <Code>(2, 1)</Code>, <Code>(2, 3)</Code>],
-            ]}
-          />
           <p className="text-sm mb-1">
-            Using <Code>(d₁, d₂ + f·d₁)</Code>. With <Code>f = 1</Code>, <Code>(1,−2)→(1,−1)</Code> is still{' '}
-            <Code>(&lt;,&gt;)</Code> — <Bad>not enough</Bad>. With <Code>f = 2</Code>, they become <Code>(1,0)</Code> and{' '}
-            <Code>(2,3)</Code> — <Good>neither is (&lt;,&gt;)</Good>.
+            <strong>(b)</strong> Any <Code>f ≥ 4</Code> works — <Code>f = 4, 5, 100, …</Code> all clear the{' '}
+            <Code>(&lt;,&gt;)</Code> for <Code>(1,−4)</Code>, and larger <Code>f</Code> never re-introduces a negative{' '}
+            <Code>d₂</Code> once it's non-negative. There is <strong>no</strong> upper limit on correctness — but larger{' '}
+            <Code>f</Code> skews the iteration space into a thinner, more elongated parallelogram, which is bad for
+            practice (worse locality, uglier bounds) even though it stays legal. <strong>Always pick the minimal{' '}
+            <Code>f</Code></strong> — never more skew than the blocking dependence requires.
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <strong>(c)</strong> The smallest legal factor is <Good>f = 2</Good>. (For a distance <Code>(d₁,d₂)</Code>{' '}
-            with <Code>d₂ &lt; 0</Code> we need <Code>d₂ + f·d₁ ≥ 0</Code>, i.e. <Code>f ≥ ⌈−d₂/d₁⌉</Code>; the binding one
-            is <Code>(1,−2)</Code> ⇒ <Code>f ≥ 2</Code>.)
+            <Good>Answer:</Good> minimal <Code>f = 4</Code>; anything larger is still legal but only makes the
+            parallelogram (and its bounds) worse for no correctness benefit.
           </Panel>
         </>
       }
@@ -537,35 +558,43 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Derive the skewed index and bounds"
+      title="Full derivation on a differently-shaped nest"
       statement={
         <>
           <p className="mb-2">
-            For the nest below, skew with <Code>f = 1</Code> and give the skewed loop complex (index recovery and bounds),
-            before any interchange.
+            For the nest below, find the minimal skew factor, then derive the skewed loop complex (index recovery and
+            bounds) — before any interchange.
           </p>
-          <Pre>{`for (i = 2; i <= n; i++)
-  for (j = 2; j <= m; j++)
-    a[i][j] = 0.5 * (a[i-1][j-1] + a[i-1][j+1]);`}</Pre>
+          <Pre>{`for (p = 0; p <= n; p++)
+  for (q = 0; q <= p; q++)
+    h[p][q] = h[p-1][q] - h[p-1][q+2];`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            Normalized: <Code>i = iₙ+2</Code>, <Code>j = jₙ+2</Code>. Skew goal: <Code>iₛ = iₙ</Code>,{' '}
-            <Code>jₛ = jₙ + iₙ</Code> ⇒ recovery <Code>i = iₛ+2</Code>, <Code>j = jₛ − iₛ + 2</Code>.
+            <strong>Dependences:</strong> <Code>h[p-1][q]</Code> ⇒ distance <Code>(1,0)</Code>; <Code>h[p-1][q+2]</Code>{' '}
+            ⇒ distance <Code>(1,−2)</Code>. Only the second is <Code>(&lt;,&gt;)</Code>; it needs{' '}
+            <Code>f ≥ 2</Code>. Check <Code>f = 2</Code> on <em>both</em> (skewing transforms every dependence, not just
+            the blocker): <Code>(1,0) → (1, 0+2) = (1,2)</Code> and <Code>(1,−2) → (1, −2+2) = (1,0)</Code> —{' '}
+            <Good>neither is (&lt;,&gt;), f = 2 clears both.</Good>
           </p>
-          <p className="text-sm mb-1">Substituting into <Code>2 ≤ i ≤ n</Code>, <Code>2 ≤ j ≤ m</Code>:</p>
-          <Formula>{`0  ≤ iₛ ≤ n − 2
-iₛ ≤ jₛ ≤ m + iₛ − 2`}</Formula>
-          <Pre>{`for (is = 0; is <= n-2; is++)
-  for (js = is; js <= m + is - 2; js++) {
-    i = is + 2;  j = js - is + 2;
-    a[i][j] = 0.5 * (a[i-1][j-1] + a[i-1][j+1]);
+          <p className="text-sm mb-1">
+            The loop is already normalized (<Code>p, q</Code> start at 0). Skew goal: <Code>pₛ = p</Code>,{' '}
+            <Code>qₛ = q + f·p = q + 2p</Code> ⇒ recovery <Code>p = pₛ</Code>, <Code>q = qₛ − 2pₛ</Code>.
+          </p>
+          <p className="text-sm mb-1">Substitute into <Code>0 ≤ p ≤ n</Code>, <Code>0 ≤ q ≤ p</Code>:</p>
+          <Formula>{`0 ≤ pₛ ≤ n
+0 ≤ qₛ − 2pₛ ≤ pₛ   ⟹   2pₛ ≤ qₛ ≤ 3pₛ`}</Formula>
+          <Pre>{`for (ps = 0; ps <= n; ps++)
+  for (qs = 2*ps; qs <= 3*ps; qs++) {
+    p = ps;  q = qs - 2*ps;
+    h[p][q] = h[p-1][q] - h[p-1][q+2];
   }`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Correct.</Good> The inner bound <Code>jₛ ≥ iₛ</Code> encodes the skew: each row of the space is shifted
-            right by <Code>iₛ</Code>.
+            <Good>Correct.</Good> Note the skew factor <Code>f = 2</Code> shows up directly as the <Code>2·ps</Code>{' '}
+            shift in <Code>qₛ</Code>'s bounds — each successive row of the space is shifted right by{' '}
+            <em>twice</em> its row index, a steeper slant than the <Code>f = 1</Code> case.
           </Panel>
         </>
       }
@@ -574,31 +603,48 @@ iₛ ≤ jₛ ≤ m + iₛ − 2`}</Formula>
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Skew, then interchange with max/min bounds"
+      title="Skew, interchange, and re-verify from scratch"
       statement={
         <>
           <p className="mb-2">
-            Continue Q4: interchange the skewed nest so <Code>jₛ</Code> is the outer loop, and give the final loop complex
-            with correct bounds. Explain where the <Code>max</Code> and <Code>min</Code> come from.
+            Continue Q4: (a) interchange the skewed nest so <Code>qₛ</Code> is outer, giving correct{' '}
+            <Code>max</Code>/<Code>min</Code> bounds. (b) Independently re-derive the distance vector of both original
+            dependences <em>in the interchanged skewed nest</em> and confirm neither is <Code>(&lt;,&gt;)</Code> — don't
+            just trust the earlier calculation.
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            From <Code>iₛ ≤ jₛ ≤ m + iₛ − 2</Code> we solve for <Code>iₛ</Code>: <Code>jₛ − m + 2 ≤ iₛ ≤ jₛ</Code>. Combine
-            with <Code>0 ≤ iₛ ≤ n − 2</Code>. The outer <Code>jₛ</Code> then ranges over <Code>0 … m + n − 4</Code>:
+            <strong>(a) Interchange.</strong> From <Code>2pₛ ≤ qₛ ≤ 3pₛ</Code> solve for <Code>pₛ</Code>:{' '}
+            <Code>qₛ/3 ≤ pₛ ≤ qₛ/2</Code>. Combined with <Code>0 ≤ pₛ ≤ n</Code>, and <Code>qₛ</Code> ranging{' '}
+            <Code>0 … 3n</Code>:
           </p>
-          <Pre>{`for (js = 0; js <= m + n - 4; js++)
-  for (is = max(0, js-m+2); is <= min(js, n-2); is++) {
-    i = is + 2;  j = js - is + 2;
-    a[i][j] = 0.5 * (a[i-1][j-1] + a[i-1][j+1]);
+          <Pre>{`for (qs = 0; qs <= 3*n; qs++)
+  for (ps = max(0, ceil(qs/3)); ps <= min(n, floor(qs/2)); ps++) {
+    p = ps;  q = qs - 2*ps;
+    h[p][q] = h[p-1][q] - h[p-1][q+2];
   }`}</Pre>
+          <p className="text-sm mb-1">
+            (Integer division needs the explicit <Code>ceil</Code>/<Code>floor</Code> here because <Code>qₛ</Code> is
+            not always a multiple of 2 or 3 — unlike Q4's worked example where the bare fractions sufficed.)
+          </p>
+          <p className="text-sm mb-1">
+            <strong>(b) Re-derive independently.</strong> In the <em>interchanged skewed</em> nest, the outer loop is now{' '}
+            <Code>qₛ</Code>, inner is <Code>pₛ</Code> — so a fresh distance vector is <Code>(Δqₛ, Δpₛ)</Code>, in that
+            order. Q4's post-skew distances, in original <Code>(pₛ,qₛ)</Code> order, are <Code>(1,2)</Code> (from{' '}
+            <Code>(1,0)</Code>) and <Code>(1,0)</Code> (from <Code>(1,−2)</Code>) — recomputed above, not just assumed.
+            Swap the two components for the new loop order:
+          </p>
+          <Formula>{`(pₛ,qₛ)-order (1,2), (1,0)  →  (qₛ,pₛ)-order (2,1), (0,1)`}</Formula>
           <Panel className="text-sm leading-relaxed mt-1">
-            <strong>Where max/min come from:</strong> the inner index must satisfy <em>both</em> pairs of bounds at once.
-            The lower bound is the <Code>max</Code> of the two lower limits (<Code>0</Code> and <Code>jₛ−m+2</Code>); the
-            upper bound is the <Code>min</Code> of the two upper limits (<Code>jₛ</Code> and <Code>n−2</Code>). Geometrically
-            they clip the inner run to the <strong>parallelogram</strong> the skew produced.
+            Both are lexicographically positive — <Code>(2,1)</Code> is <Code>(&lt;,&lt;)</Code>, <Code>(0,1)</Code> is{' '}
+            <Code>(=,&lt;)</Code> — neither is <Code>(&lt;,&gt;)</Code>. <Good>Confirmed independently:</Good> the
+            interchange is legal, matching what skewing promised. <strong>Why this check matters:</strong> skewing
+            guarantees no <Code>(&lt;,&gt;)</Code> in the <em>pre-interchange</em> order; verifying it survives{' '}
+            <em>after</em> swapping the two loop roles is a separate, necessary step — algebraically it always will
+            (that's the theorem), but re-deriving it by hand here confirms no bookkeeping slip crept into (a).
           </Panel>
         </>
       }

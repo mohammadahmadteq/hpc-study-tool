@@ -494,42 +494,58 @@ const TriSection: React.FC = () => (
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.4, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.4, easy → hardest — all on <em>fresh</em> code, not the lecture examples. Q1 is
+      fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Is this interchange legal? Use the direction vector"
+      title="From subscripts to verdict — including a counterexample"
       statement={
         <>
-          <p className="mb-2">Decide whether the loops may be interchanged, and justify with the direction vector.</p>
-          <Pre>{`for (i = 1; i < n; i++)
-  for (j = 1; j < n; j++)
-    a[i][j] = a[i-1][j] + 1;`}</Pre>
+          <p className="mb-2">
+            Derive the distance and direction vector from the subscripts, decide whether the loops may be interchanged,
+            and — if not — give a <em>concrete pair of iterations</em> whose values change after the swap.
+          </p>
+          <Pre>{`for (i = 2; i <= n; i++)
+  for (j = 1; j <= m-1; j++)
+    b[i][j] = b[i-2][j+1] * 0.5;`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>Dependence.</strong> <Code>a[i][j]</Code> is written; <Code>a[i−1][j]</Code> is read one iteration
-            later in <Code>i</Code>, same <Code>j</Code>. Distance vector <Code>(1, 0)</Code> ⇒ direction{' '}
-            <Code>(&lt;, =)</Code>.
+            <strong>Step 1 — the distance vector from the subscripts.</strong> Iteration <Code>(i, j)</Code> reads{' '}
+            <Code>b[i−2][j+1]</Code>, which was <em>written</em> by iteration <Code>(i−2, j+1)</Code>. Distance = (read
+            iteration) − (write iteration):
+          </p>
+          <Formula>{`d = (i, j) − (i−2, j+1) = (2, −1)   →   direction (<, >)`}</Formula>
+          <p className="text-sm mb-1">
+            The vector is lexicographically positive (leading entry 2 &gt; 0), so this is a real flow dependence — the
+            write happens two <Code>i</Code>-iterations before the read, one <Code>j</Code>-iteration "behind".
           </p>
           <p className="text-sm mb-1">
-            <strong>Swap the entries:</strong> <Code>(&lt;,=)</Code> → <Code>(=,&lt;)</Code>, still lexicographically
-            positive (leading non-zero is <Code>&lt;</Code>). It is <strong>not</strong> the forbidden{' '}
-            <Code>(&lt;,&gt;)</Code>.
+            <strong>Step 2 — swap the entries:</strong> <Code>(2, −1) → (−1, 2)</Code>, i.e. <Code>(&lt;,&gt;)</Code> →{' '}
+            <Code>(&gt;,&lt;)</Code>: lexicographically <em>negative</em>. <Bad>Interchange is illegal</Bad> — this is
+            exactly the one forbidden direction.
           </p>
-          <Pre>{`for (j = 1; j < n; j++)
-  for (i = 1; i < n; i++)
-    a[i][j] = a[i-1][j] + 1;`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Step 3 — concrete counterexample.</strong> Take the write at <Code>(i,j) = (2,3)</Code> (produces{' '}
+            <Code>b[2][3]</Code>) and the read at <Code>(4,2)</Code> (consumes <Code>b[2][3]</Code>):
+          </p>
+          <Table
+            head={['Order', 'Which runs first?', 'The read of b[2][3] sees']}
+            rows={[
+              [<><Code>i</Code> outer (original)</>, <><Code>(2,3)</Code> before <Code>(4,2)</Code> — write first</>, <Good>the new value ✓</Good>],
+              [<><Code>j</Code> outer (swapped)</>, <><Code>(j,i) = (2,4)</Code> before <Code>(3,2)</Code> — read first</>, <Bad>the stale value ✗</Bad>],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal.</Good> After the swap the dependence is carried by the (now inner) <Code>i</Code> loop, source
-            still before target. Bonus: the new <em>inner</em> loop over <Code>i</Code> carries the dependence, so the new{' '}
-            <em>outer</em> <Code>j</Code> loop is now parallel.
+            <Good>Pattern for Q2–Q5:</Good> (i) distance = read-iteration − write-iteration (per index), (ii) check the
+            write really precedes the read (lexicographically positive), (iii) swap the entries and test positivity
+            again, (iv) when the verdict is "illegal", one concrete iteration pair is the cleanest proof.
           </Panel>
         </>
       }
@@ -538,22 +554,39 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={2}
       diff="Easy"
-      title="The illegal case"
+      title="Interchange to unlock vectorization"
       statement={
         <>
           <p className="mb-2">
-            A loop nest has a single dependence with direction vector <Code>(&lt;, &gt;)</Code>. May the loops be
-            interchanged? Explain in one or two sentences.
+            (a) Which loop carries the dependence, and why can the inner loop <em>not</em> be vectorized as written? (b)
+            Show the interchange is legal. (c) Which loop carries the dependence afterwards — and what did we gain?
           </p>
+          <Pre>{`for (i = 0; i < n; i++)
+  for (j = 1; j < m; j++)
+    c[i][j] = c[i][j-1] + u[i];`}</Pre>
         </>
       }
       solution={
         <>
-          <Panel className="text-sm leading-relaxed">
-            <Bad>No.</Bad> Swapping the loops swaps the vector entries: <Code>(&lt;,&gt;)</Code> → <Code>(&gt;,&lt;)</Code>.
-            The leading entry becomes <Code>&gt;</Code>, meaning the source iteration would now run <em>after</em> the
-            target — the dependence is reversed and the result changes. <Code>(&lt;,&gt;)</Code> is the{' '}
-            <strong>only</strong> direction vector for which loop interchange is incorrect.
+          <p className="text-sm mb-1">
+            <strong>(a)</strong> Write <Code>c[i][j]</Code>, read <Code>c[i][j−1]</Code> → distance{' '}
+            <Code>(0, 1)</Code>, direction <Code>(=, &lt;)</Code>. The first nonzero entry is in the <Code>j</Code>{' '}
+            position: the <strong>inner loop carries it</strong> — each <Code>j</Code>-iteration needs its predecessor, a
+            running recurrence, so the inner loop cannot be vectorized.
+          </p>
+          <p className="text-sm mb-1">
+            <strong>(b)</strong> Swap: <Code>(=,&lt;) → (&lt;,=)</Code>, still lexicographically positive and not{' '}
+            <Code>(&lt;,&gt;)</Code> ⇒ <Good>legal</Good>:
+          </p>
+          <Pre>{`for (j = 1; j < m; j++)
+  for (i = 0; i < n; i++)
+    c[i][j] = c[i][j-1] + u[i];`}</Pre>
+          <Panel className="text-sm leading-relaxed mt-1">
+            <strong>(c)</strong> The swapped vector <Code>(&lt;,=)</Code> has its first nonzero in the new <em>outer</em>{' '}
+            (<Code>j</Code>) position — the dependence is now carried by the outer loop, and the inner <Code>i</Code>{' '}
+            loop carries <strong>nothing</strong>: all <Code>n</Code> rows advance independently, so the inner loop
+            vectorizes / parallelizes. <Good>Interchange moved the recurrence out of the hot loop.</Good> (Caveat: for a
+            row-major array the inner <Code>i</Code> accesses are strided — expect a locality trade-off, cf. Q3.)
           </Panel>
         </>
       }
@@ -562,32 +595,42 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={3}
       diff="Medium"
-      title="Interchange for locality"
+      title="When locality wants the swap but legality forbids it"
       statement={
         <>
           <p className="mb-2">
-            The array <Code>a</Code> is stored row-major (<Code>a[i][j]</Code> contiguous in <Code>j</Code>). Which loop
-            order gives better cache locality, and is the interchange legal here?
+            <Code>A</Code> is row-major (<Code>A[i][j]</Code> contiguous in <Code>j</Code>). (a) Which loop order would
+            give stride-1 accesses? (b) Derive the dependence — mind which access is the read and which the write — and
+            decide whether that order can be reached by interchange. (c) State the outcome.
           </p>
-          <Pre>{`for (j = 0; j < n; j++)
-  for (i = 0; i < n; i++)
-    a[i][j] = a[i][j] * 2;`}</Pre>
+          <Pre>{`for (j = 1; j < m-1; j++)
+  for (i = 1; i < n; i++)
+    A[i][j] = A[i-1][j+1] + 1;`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            As written, the inner loop varies <Code>i</Code>, so successive accesses <Code>a[0][j], a[1][j], …</Code> are{' '}
-            <strong>stride n</strong> apart — a new cache line each time. Interchanging to put <Code>j</Code> inner makes
-            accesses <strong>stride 1</strong> (contiguous):
+            <strong>(a)</strong> The inner loop varies <Code>i</Code> → consecutive accesses jump a whole row
+            (stride <Code>m</Code>). For stride 1 we want <Code>j</Code> innermost, i.e. the interchanged order.
           </p>
-          <Pre>{`for (i = 0; i < n; i++)
-  for (j = 0; j < n; j++)
-    a[i][j] = a[i][j] * 2;`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>(b)</strong> Careful — work in the loop order <Code>(j, i)</Code>. Iteration <Code>(j, i)</Code>{' '}
+            reads <Code>A[i−1][j+1]</Code>; that element is written by iteration <Code>(j+1, i−1)</Code>, which runs{' '}
+            <em>later</em> (larger <Code>j</Code>). Read-before-write ⇒ an <strong>anti</strong>-dependence, source =
+            the reading iteration:
+          </p>
+          <Formula>{`d = (j+1, i−1) − (j, i) = (1, −1)   →   direction (<, >)`}</Formula>
+          <p className="text-sm mb-1">
+            That is precisely the forbidden vector: swapping gives <Code>(&gt;,&lt;)</Code>, the write would overtake the
+            read and every <Code>A[i−1][j+1]</Code> would see an already-overwritten value. <Bad>Interchange
+            illegal.</Bad>
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal &amp; faster.</Good> The only "dependence" is the trivial self-write with distance <Code>(0,0)</Code>{' '}
-            (loop-independent), which is irrelevant to interchange. Putting the contiguous index <Code>j</Code> innermost
-            maximises spatial locality.
+            <strong>(c)</strong> The cache-friendly order exists but is unreachable by interchange alone — the nest is
+            stuck with strided accesses. (Anti-dependences count exactly like flow dependences here; and this{' '}
+            <Code>(&lt;,&gt;)</Code> blockade is the cue for <strong>loop skewing</strong>, §4.6.){' '}
+            <Good>Lesson:</Good> profitability (a) and legality (b) are separate questions — always answer both.
           </Panel>
         </>
       }
@@ -596,29 +639,47 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Triangular bounds — adjust for the swap"
+      title="Trapezoidal bounds — a max() lower bound appears"
       statement={
         <>
-          <p className="mb-2">Interchange this nest, recomputing the bounds so the iteration space is unchanged.</p>
-          <Pre>{`for (i = 1; i <= 4; i++)
-  for (j = i; j <= 6; j++)
-    a[i][j] = a[i][j+1];`}</Pre>
+          <p className="mb-2">
+            Interchange this nest, recomputing the bounds so the iteration space is preserved (sketch it first!), and
+            verify legality via the dependence.
+          </p>
+          <Pre>{`for (i = 0; i <= 5; i++)
+  for (j = 0; j <= i+2; j++)
+    w[i][j] = w[i-1][j] + 1;`}</Pre>
         </>
       }
       solution={
         <>
-          <p className="text-sm mb-1">Write the space as inequalities:</p>
-          <Formula>{`i ≥ 1 ,  i ≤ 4 ,  j ≥ i ,  j ≤ 6`}</Formula>
           <p className="text-sm mb-1">
-            Put <Code>j</Code> outer: <Code>j</Code> runs <Code>1 … 6</Code>; for fixed <Code>j</Code>, <Code>i</Code>{' '}
-            satisfies <Code>1 ≤ i ≤ 4</Code> and <Code>i ≤ j</Code> ⇒ <Code>i ≤ min(4, j)</Code>:
+            <strong>Legality first.</strong> Write <Code>w[i][j]</Code>, read <Code>w[i−1][j]</Code>: distance{' '}
+            <Code>(1,0)</Code>, direction <Code>(&lt;,=)</Code> ≠ <Code>(&lt;,&gt;)</Code> ⇒ interchange allowed.
           </p>
-          <Pre>{`for (j = 1; j <= 6; j++)
-  for (i = 1; i <= min(4, j); i++)
-    a[i][j] = a[i][j+1];`}</Pre>
+          <p className="text-sm mb-1"><strong>The space as inequalities:</strong></p>
+          <Formula>{`0 ≤ i ≤ 5,    0 ≤ j ≤ i + 2`}</Formula>
+          <p className="text-sm mb-1">
+            A trapezoid: rows get longer as <Code>i</Code> grows (row <Code>i</Code> has <Code>i+3</Code> points, up to{' '}
+            <Code>j = 7</Code>). Now solve for <Code>j</Code> outer: from <Code>j ≤ i+2</Code> and <Code>i ≤ 5</Code>,{' '}
+            <Code>j</Code> ranges <Code>0 … 7</Code>; for fixed <Code>j</Code>, the constraint <Code>j ≤ i+2</Code>{' '}
+            becomes a <strong>lower</strong> bound on <Code>i</Code>: <Code>i ≥ j−2</Code>, together with{' '}
+            <Code>i ≥ 0</Code>:
+          </p>
+          <Pre>{`for (j = 0; j <= 7; j++)
+  for (i = max(0, j-2); i <= 5; i++)
+    w[i][j] = w[i-1][j] + 1;`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Spot check:</strong> <Code>j = 0</Code> → <Code>i = 0…5</Code> (column 0 is full ✓); <Code>j = 7</Code>{' '}
+            → <Code>i = 5…5</Code> (only the longest row reaches <Code>j = 7</Code> ✓). Total points:{' '}
+            <Code>3+4+…+8 = 33</Code> in both versions.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Correct.</Good> The <Code>min(4, j)</Code> reproduces the triangle exactly, and the dependence via{' '}
-            <Code>a[i][j+1]</Code> is not <Code>(&lt;,&gt;)</Code>, so the swap is legal.
+            <Good>Mirror rule of the lecture example:</Good> an outer index in the inner loop's <em>upper</em> bound
+            turns into a <Code>min(…)</Code> upper bound after the swap — an outer index in the inner{' '}
+            <em>upper</em> bound constraining from below (as here, <Code>j ≤ i+2</Code> read backwards) turns into a{' '}
+            <Code>max(…)</Code> <em>lower</em> bound. Deriving from the inequality system gets both cases right
+            automatically.
           </Panel>
         </>
       }
@@ -627,35 +688,61 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Classify every dependence, then decide"
+      title="Three nested loops — which of the six orders are legal?"
       statement={
         <>
           <p className="mb-2">
-            A nest <Code>for i / for j</Code> has three dependences with distance vectors <Code>(0,1)</Code>,{' '}
-            <Code>(1,0)</Code>, and <Code>(1,−1)</Code>. (a) For each, give the direction vector and say whether swapping
-            preserves it. (b) Is the interchange of the whole nest legal? (c) If not, which single dependence blocks it?
+            A nest <Code>for i / for j / for k</Code> has three dependences with distance vectors (in{' '}
+            <Code>(i,j,k)</Code> order):
+          </p>
+          <Formula>{`d1 = (1, 1, −1),    d2 = (0, 1, 0),    d3 = (1, 0, 0)`}</Formula>
+          <p className="mb-0">
+            (a) State the legality rule for a general loop permutation. (b) Decide for each of the 6 orders whether it is
+            legal. (c) Among the legal orders, which leave the <em>innermost</em> loop free of carried dependences (=
+            vectorizable)? (d) Explain structurally why <Code>k</Code> can never be the outermost loop.
           </p>
         </>
       }
       solution={
         <>
+          <p className="text-sm mb-1">
+            <strong>(a)</strong> A permutation is legal iff <em>every</em> distance vector, with its entries permuted the
+            same way, stays <strong>lexicographically positive</strong> — the pairwise <Code>(&lt;,&gt;)</Code> rule is
+            the 2-loop special case.
+          </p>
+          <p className="text-sm mb-1"><strong>(b)</strong> Permute all three vectors and test each order:</p>
           <Table
-            head={['Distance', 'Direction', 'Swapped', 'Preserved?']}
+            head={['Order', 'd1', 'd2', 'd3', 'Verdict']}
             rows={[
-              [<Code>(0,1)</Code>, <Code>(=,&lt;)</Code>, <Code>(&lt;,=)</Code>, <Good>✓</Good>],
-              [<Code>(1,0)</Code>, <Code>(&lt;,=)</Code>, <Code>(=,&lt;)</Code>, <Good>✓</Good>],
-              [<Code>(1,−1)</Code>, <Code>(&lt;,&gt;)</Code>, <Code>(&gt;,&lt;)</Code>, <Bad>✗</Bad>],
+              [<Code>i,j,k</Code>, <Code>(1,1,−1)</Code>, <Code>(0,1,0)</Code>, <Code>(1,0,0)</Code>, <Good>legal</Good>],
+              [<Code>i,k,j</Code>, <Code>(1,−1,1)</Code>, <Code>(0,0,1)</Code>, <Code>(1,0,0)</Code>, <Good>legal</Good>],
+              [<Code>j,i,k</Code>, <Code>(1,1,−1)</Code>, <Code>(1,0,0)</Code>, <Code>(0,1,0)</Code>, <Good>legal</Good>],
+              [<Code>j,k,i</Code>, <Code>(1,−1,1)</Code>, <Code>(1,0,0)</Code>, <Code>(0,0,1)</Code>, <Good>legal</Good>],
+              [<Code>k,i,j</Code>, <Code>(−1,1,1)</Code>, <Code>(0,0,1)</Code>, <Code>(0,1,0)</Code>, <Bad>illegal (d1)</Bad>],
+              [<Code>k,j,i</Code>, <Code>(−1,1,1)</Code>, <Code>(0,1,0)</Code>, <Code>(0,0,1)</Code>, <Bad>illegal (d1)</Bad>],
             ]}
           />
           <p className="text-sm mb-1">
-            <strong>(a)</strong> Only <Code>(1,−1)</Code> flips to a lexicographically <em>negative</em> vector when
-            swapped.
+            <strong>(c)</strong> A dependence is carried by the loop of its <em>first nonzero</em> entry; the innermost
+            loop is dependence-free iff no permuted vector has its first nonzero in the last position:
           </p>
+          <Table
+            head={['Legal order', 'Carriers (d1, d2, d3)', 'Innermost free?']}
+            rows={[
+              [<Code>i,j,k</Code>, 'i, j, i', <Good>✓ k free — vectorizable</Good>],
+              [<Code>i,k,j</Code>, <>i, <strong>j (last!)</strong>, i</>, <Bad>✗ d2 carried innermost</Bad>],
+              [<Code>j,i,k</Code>, 'j, j, i', <Good>✓ k free — vectorizable</Good>],
+              [<Code>j,k,i</Code>, <>j, j, <strong>i (last!)</strong></>, <Bad>✗ d3 carried innermost</Bad>],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <strong>(b)</strong> <Bad>The interchange is illegal.</Bad> Interchange is legal only if <em>every</em>{' '}
-            dependence survives; here one does not. <strong>(c)</strong> The blocker is <Code>(1,−1)</Code> — direction{' '}
-            <Code>(&lt;,&gt;)</Code>, the single forbidden pattern. (This is exactly the situation §4.6 fixes with{' '}
-            <strong>loop skewing</strong>.)
+            <strong>(d)</strong> <Code>d1</Code> has a <strong>negative</strong> <Code>k</Code>-entry. A negative entry
+            is only tolerable if some <em>positive</em> entry stands further out to keep the vector lexicographically
+            positive — move <Code>k</Code> to the front and <Code>−1</Code> leads, which would mean the dependence runs
+            backwards in time. <Good>General insight:</Good> a loop whose entry is negative in some dependence may move
+            inward past positives, but never all the way out. Best choices here: <Code>i,j,k</Code> or{' '}
+            <Code>j,i,k</Code> — legal <em>and</em> innermost-vectorizable; pick between them by which array's stride-1
+            index ends up innermost.
           </Panel>
         </>
       }

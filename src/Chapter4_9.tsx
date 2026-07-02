@@ -722,24 +722,26 @@ for (i=0; i<n; i++)
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.9, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.9, easy → hardest — all on <em>fresh</em> code, not the lecture's{' '}
+      <Code>x[i][j]=y[i]+z[j]</Code> or matrix-multiplication running examples. Q1 is fully worked to set the pattern;
+      do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Pick the loop order for locality"
+      title="Here interchange actually helps — classify to find out"
       statement={
         <>
           <p className="mb-2">
-            <Code>x</Code> is row-major. Classify the locality of each reference in the current order, then decide whether
-            interchanging the loops improves overall locality.
+            <Code>w</Code> is row-major, size <Code>m × n</Code>. Classify the locality of each reference in the current
+            order, then check whether interchanging the loops improves things — don't assume the answer is "keep the
+            original order" just because that was true elsewhere.
           </p>
           <Pre>{`for (i = 1; i <= n; i++)
   for (j = 1; j <= m; j++)
-    x[i][j] = y[i] + z[j];`}</Pre>
+    w[j][i] = w[j][i] * 2 + v[j];`}</Pre>
         </>
       }
       solution={
@@ -748,16 +750,25 @@ const Questions: React.FC = () => (
           <Table
             head={['Reference', 'Locality', 'Reason']}
             rows={[
-              [<Code>x[i][j]</Code>, <Good>sequential</Good>, <>inner <Code>j</Code> = contiguous last index</>],
-              [<Code>y[i]</Code>, <Good>temporal</Good>, <>invariant in <Code>j</Code> ⇒ held in a register</>],
-              [<Code>z[j]</Code>, <Good>sequential</Good>, <>inner <Code>j</Code> steps <Code>z</Code> by 1</>],
+              [<Code>w[j][i]</Code>, <Bad>none (strided)</Bad>, <>inner <Code>j</Code> is <Code>w</Code>'s <em>first</em> (row) index — each step jumps a whole row (stride <Code>n</Code>)</>],
+              [<Code>v[j]</Code>, <Good>sequential</Good>, <>inner <Code>j</Code> steps <Code>v</Code> by 1</>],
             ]}
           />
-          <p className="text-sm mb-1"><strong>Interchanged (i innermost):</strong> <Code>x</Code> becomes strided (its first index varies) — loses sequential locality; <Code>y</Code> becomes sequential, <Code>z</Code> becomes temporal.</p>
+          <p className="text-sm mb-1"><strong>Interchanged (i innermost, j outer):</strong></p>
+          <Table
+            head={['Reference', 'Locality', 'Reason']}
+            rows={[
+              [<Code>w[j][i]</Code>, <Good>sequential</Good>, <>inner <Code>i</Code> is <Code>w</Code>'s <em>last</em> (contiguous) index now</>],
+              [<Code>v[j]</Code>, <Good>temporal</Good>, <>independent of the now-inner <Code>i</Code> ⇒ held in a register</>],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Keep the original order.</Good> The large 2-D array <Code>x</Code> dominates the traffic, and only the
-            original order gives it sequential access. Trading that for temporal reuse on the small vector <Code>z</Code>{' '}
-            is a net loss.
+            <Good>Interchange — both references improve.</Good> The large array <Code>w</Code> (the dominant traffic)
+            flips from fully strided to sequential, and the small vector <Code>v</Code> upgrades from sequential to
+            temporal (even cheaper — no memory traffic at all once cached in a register). <strong>Pattern for
+            Q2–Q5:</strong> classify every reference by whether the varying loop hits its contiguous dimension, is
+            entirely absent from its subscript, or neither — the conclusion (keep vs. swap) follows from comparing{' '}
+            <em>all</em> references, not assuming a fixed answer.
           </Panel>
         </>
       }
@@ -766,22 +777,32 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={2}
       diff="Easy"
-      title="Temporal locality from a zero column"
+      title="A zero column isn't unique — what breaks the tie?"
       statement={
         <>
           <p className="mb-2">
-            In a nest <Code>for i / for j</Code>, reference <Code>z[j]</Code> has coefficient matrix <Code>A_z = (0 1)</Code>.
-            Which loop, made innermost, gives <Code>z</Code> temporal locality — and what optimisation does that enable?
+            In a triple nest <Code>for i / for j / for k</Code>, reference <Code>u[k]</Code> has coefficient columns{' '}
+            <Code>(0, 0, 1)</Code> for <Code>(i, j, k)</Code>. Which of the three loops, if made innermost, gives{' '}
+            <Code>u</Code> temporal locality? Is there a single best choice from <Code>u</Code>'s perspective alone, and
+            if not, what else would you need to know to pick?
           </p>
         </>
       }
       solution={
         <>
           <Panel className="text-sm leading-relaxed">
-            The <strong>first column</strong> of <Code>A_z = (0 1)</Code> is zero, so <Code>z[j]</Code> is independent of
-            the <Code>i</Code> loop. Making the <Code>i</Code>-loop <strong>innermost</strong> means <Code>z[j]</Code> is
-            reused every inner iteration ⇒ <Good>temporal locality</Good>. Because the value is loop-invariant in the
-            inner loop, it can be <strong>hoisted into a scalar / register</strong> instead of reloaded.
+            Both the <Code>i</Code>- and <Code>j</Code>-columns of <Code>u</Code>'s coefficient vector are zero —{' '}
+            <Code>u[k]</Code> doesn't depend on either. So making <strong>either</strong> <Code>i</Code>{' '}
+            <strong>or</strong> <Code>j</Code> innermost gives <Code>u</Code> temporal locality; <Code>u</Code>'s own
+            access pattern gives <strong>no reason to prefer one over the other</strong> — from its perspective alone
+            the choice is a tie.
+            <div className="mt-1">
+              <strong>What breaks the tie:</strong> every <em>other</em> reference in the loop body. Whichever of{' '}
+              <Code>i</Code> or <Code>j</Code> gives the biggest combined benefit across <em>all</em> references (e.g.
+              matches another array's contiguous dimension) should be the one placed innermost — exactly the
+              multi-reference comparison Q1 and Q5 require. A single reference's zero columns only narrow the
+              candidates; they rarely settle the question alone.
+            </div>
           </Panel>
         </>
       }
@@ -790,31 +811,39 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={3}
       diff="Medium"
-      title="Compute reuse factors and footprint"
+      title="Reuse factor when the coefficient isn't 1"
       statement={
         <>
           <p className="mb-2">
-            For <Code>x[i][j]</Code> (row-major) in <Code>for i (n) / for j (m)</Code> with cache-block size <Code>l = 4</Code>,
-            give <Code>Rᶻ_i, Rᶻ_j, Rʳ_i, Rʳ_j</Code>, the overall <Code>R_i, R_j</Code>, and the footprint <Code>F_i</Code>.
+            For <Code>s[p][2·r]</Code> (row-major <Code>s</Code>) in <Code>for p (n=30) / for r (k=50)</Code> with
+            cache-block size <Code>l = 8</Code>, give <Code>Rᶻ_p, Rᶻ_r, Rʳ_p, Rʳ_r</Code>, the overall <Code>R_p, R_r</Code>,
+            and the footprint <Code>F_p</Code>. (Every worked example so far used coefficient 1 in the contiguous
+            dimension — this one doesn't.)
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <Code>A_x = ((1 0)(0 1))</Code>. Neither column is all-zero ⇒ <Code>Rᶻ_i = Rᶻ_j = 1</Code>.
+            <Code>A_s</Code> has row 1 (dim <Code>p</Code>) = <Code>(1, 0)</Code> and row 2 (dim <Code>2r</Code>) ={' '}
+            <Code>(0, 2)</Code> — the contiguous (last) dimension's coefficient on <Code>r</Code> is{' '}
+            <strong>2, not 1</strong>. Neither column is all-zero ⇒ <Code>Rᶻ_p = Rᶻ_r = 1</Code> (no temporal reuse
+            either way).
           </p>
           <p className="text-sm mb-1">
-            Spatial: the contiguous dimension is the last (<Code>j</Code>). The <Code>j</Code>-column has its non-zero in
-            that row with coefficient 1 ⇒ <Code>Rʳ_j = max(1, l/1) = 4</Code>. The <Code>i</Code>-column's non-zero is in
-            the <em>first</em> (non-contiguous) row ⇒ <Code>Rʳ_i = 1</Code>.
+            Spatial: the <Code>r</Code>-column's non-zero sits in the contiguous row with coefficient <Code>a_sk = 2</Code>,
+            so <Code>Rʳ_r = max(1, l/a_sk) = max(1, 8/2) = 4</Code> — half of what coefficient 1 would have given (
+            <Code>max(1,8/1)=8</Code>). The <Code>p</Code>-column's non-zero sits in the non-contiguous row ⇒{' '}
+            <Code>Rʳ_p = 1</Code>.
           </p>
-          <Formula>{`R_i = Rʳ_i = 1        R_j = Rʳ_j = 4     (since Rᶻ = 1)
-F_j = m / R_j = m/4
-F_i = (n / R_i)·F_j = (n/1)·(m/4) = n·m / 4`}</Formula>
+          <Formula>{`R_p = Rʳ_p = 1        R_r = Rʳ_r = 4     (since Rᶻ = 1 for both)
+F_r = k / R_r = 50/4 = 12.5
+F_p = (n / R_p)·F_r = (30/1)·12.5 = 375`}</Formula>
           <Panel className="text-sm leading-relaxed mt-1">
-            So one cache block serves 4 consecutive <Code>j</Code> accesses, but there is no temporal reuse — the footprint{' '}
-            <Code>n·m/4</Code> is the dominant term of the whole loop.
+            <Good>Key transfer point:</Good> a stride-2 access in the contiguous dimension still gets <em>some</em>{' '}
+            spatial reuse (each 8-word block holds 4 of the touched elements, since every other word is skipped), just
+            half as much as stride 1 would. <Code>Rʳ_k = max(1, l/a_sk)</Code> already handles this — Q1–Q3 in the
+            lecture's own examples just never showed <Code>a_sk ≠ 1</Code> in action.
           </Panel>
         </>
       }
@@ -823,34 +852,39 @@ F_i = (n / R_i)·F_j = (n/1)·(m/4) = n·m / 4`}</Formula>
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Group reuse between references"
+      title="Group reuse with a non-unit offset"
       statement={
         <>
           <p className="mb-2">
-            In <Code>for i (n) / for j (m)</Code> the same array is read as <Code>x[i][j]</Code>, <Code>x[i+1][j]</Code>,
-            and <Code>x[i][j-1]</Code>. For each consecutive pair (sorted by descending address), find <Code>d⃗</Code> from{' '}
-            <Code>A·d⃗ = c⃗₁ − c⃗₂</Code> and give the temporal group-reuse factor.
+            In <Code>for r (n) / for c (m)</Code> the same array is read as <Code>g[r][c]</Code>, <Code>g[r][c+2]</Code>,
+            and <Code>g[r-1][c]</Code>. Sort by descending address, find <Code>d⃗</Code> for each consecutive pair, and
+            give the temporal group-reuse factor. (Note one offset is <Code>2</Code>, not <Code>1</Code> — the reuse
+            distance changes accordingly.)
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <Code>A = ((1 0)(0 1))</Code>. Descending address order: <Code>x[i+1][j]</Code> (c=(1,0)),{' '}
-            <Code>x[i][j]</Code> (c=(0,0)), <Code>x[i][j-1]</Code> (c=(0,−1)).
+            <Code>A = ((1 0)(0 1))</Code>. Offsets: <Code>g[r][c]</Code>: <Code>c⃗=(0,0)</Code>; <Code>g[r][c+2]</Code>:{' '}
+            <Code>c⃗=(0,2)</Code>; <Code>g[r-1][c]</Code>: <Code>c⃗=(−1,0)</Code>. Descending address order (larger{' '}
+            <Code>c</Code>-offset ⇒ higher address at equal <Code>r</Code>; larger <Code>r</Code> ⇒ higher address at
+            equal <Code>c</Code>): <Code>g[r][c+2]</Code>, then <Code>g[r][c]</Code>, then <Code>g[r-1][c]</Code>.
           </p>
           <Table
             head={['pair (c₁ → c₂)', 'A·d⃗ = c₁−c₂', 'd⃗', 'factor']}
             rows={[
-              [<><Code>x[i+1][j] → x[i][j]</Code></>, <Code>(1,0)</Code>, <Code>(1,0)</Code>, <><Code>Wᶻ·ᵍ_i = n/1 = n</Code></>],
-              [<><Code>x[i][j] → x[i][j-1]</Code></>, <Code>(0,1)</Code>, <Code>(0,1)</Code>, <><Code>Wᶻ·ᵍ_j = m/1 = m</Code></>],
+              [<><Code>g[r][c+2] → g[r][c]</Code></>, <Code>(0,2)</Code>, <Code>(0,2)</Code>, <><Code>Wᶻ·ᵍ_c = m/2</Code></>],
+              [<><Code>g[r][c] → g[r-1][c]</Code></>, <Code>(1,0)</Code>, <Code>(1,0)</Code>, <><Code>Wᶻ·ᵍ_r = n/1 = n</Code></>],
             ]}
           />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Code>x[i+1][j]</Code> and <Code>x[i][j]</Code> hit the same element <Code>n</Code> apart in the <Code>i</Code>
-            direction ⇒ reuse factor <Code>n</Code> on the <Code>i</Code>-loop. <Code>x[i][j]</Code> and{' '}
-            <Code>x[i][j-1]</Code> reuse along <Code>j</Code> ⇒ factor <Code>m</Code> on the <Code>j</Code>-loop. Two
-            identical references (<Code>d⃗ = 0</Code>) would give factor <Code>∞</Code>.
+            <Code>g[r][c+2]</Code> and <Code>g[r][c]</Code> hit the same element, but only after <strong>2</strong>{' '}
+            iterations of the <Code>c</Code>-loop (not 1) — the reuse distance directly inherits the subscript's offset,
+            giving factor <Code>m/2</Code> rather than the <Code>m/1</Code> you'd get from a unit offset. <Code>g[r][c]</Code>{' '}
+            and <Code>g[r-1][c]</Code> still reuse 1 iteration apart on <Code>r</Code>, factor <Code>n</Code> — the
+            general rule <Code>Wᶻ·ᵍ_k = n_k / d_k</Code> already covers this; the lecture's own group-reuse example just
+            happened to only ever show <Code>d_k = 1</Code>.
           </Panel>
         </>
       }
@@ -859,35 +893,52 @@ F_i = (n / R_i)·F_j = (n/1)·(m/4) = n·m / 4`}</Formula>
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Matrix multiplication — which loop innermost?"
+      title="A four-reference case study — matmul's method, a new kernel"
       statement={
         <>
           <p className="mb-2">
-            For the multiply nest below (arrays row-major, cache block <Code>l</Code> words), determine which of{' '}
-            <Code>i, j, k</Code> should be the innermost loop to minimise loaded cache blocks. Justify per reference.
+            <Code>out</Code>, <Code>in1</Code>, <Code>in2</Code> are <Code>n×n</Code> row-major; <Code>scale</Code> is a
+            length-<Code>n</Code> vector; cache block <Code>l</Code> words, <Code>l | n</Code>. Determine which of{' '}
+            <Code>i, j, k</Code> should be innermost to minimise total cache-block loads, justifying{' '}
+            <strong>every</strong> reference including the vector.
           </p>
-          <Pre>{`for (i=0; i<n; i++)
-  for (j=0; j<n; j++)
-    for (k=0; k<n; k++)
-      c[i][j] += a[i][k] * b[k][j];`}</Pre>
+          <Pre>{`for (i = 0; i < n; i++)
+  for (j = 0; j < n; j++)
+    for (k = 0; k < n; k++)
+      out[i][k] += in1[i][j] * in2[j][k] * scale[k];`}</Pre>
         </>
       }
       solution={
         <>
-          <p className="text-sm mb-1">Per reference, look at the innermost loop's effect on each subscript:</p>
+          <p className="text-sm mb-1">
+            This is a matrix product (<Code>out = in1·in2</Code>) with each output row additionally scaled element-wise
+            by <Code>scale[k]</Code>. Compare the three candidates, in each case using the best order of the other two
+            loops (exactly as the matrix-multiplication case study does):
+          </p>
           <Table
-            head={['innermost', 'c[i][j]', 'a[i][k]', 'b[k][j]', 'total']}
+            head={['innermost', 'order', 'out[i][k]', 'in1[i][j]', 'in2[j][k]', 'scale[k]', 'total']}
             rows={[
-              [<Code>i</Code>, <>n³ (strided)</>, <>n³ (strided)</>, <>n² (invariant)</>, <Code>2n³ + n²</Code>],
-              [<Code>j</Code>, <>n³/l (seq.)</>, <>n²/l (invariant)</>, <>n³/l (seq.)</>, <Good>2n³/l + n²/l</Good>],
-              [<Code>k</Code>, <>n²/l (invariant)</>, <>n³/l (seq.)</>, <>n³ (strided)</>, <Code>n³(1+1/l) + n²/l</Code>],
+              [<Code>k</Code>, 'i-j-k', <>seq.</>, <>invariant</>, <>seq.</>, <>seq.</>, <Good>3n³/l + n²/l</Good>],
+              [<Code>j</Code>, 'i-k-j', <>invariant</>, <>seq.</>, <Bad>strided</Bad>, <>invariant</>, <Code>n³ + n³/l + 2n²/l</Code>],
+              [<Code>i</Code>, 'j-k-i', <Bad>strided</Bad>, <Bad>strided</Bad>, <>invariant</>, <>invariant</>, <Code>2n³ + 2n²/l</Code>],
             ]}
           />
+          <p className="text-sm mb-1">
+            <strong>Why <Code>k</Code> wins:</strong> <Code>k</Code> is the contiguous (last) index of <em>both</em>{' '}
+            <Code>out[i][k]</Code> and <Code>in2[j][k]</Code> — innermost <Code>k</Code> gives both sequential access.{' '}
+            <Code>in1[i][j]</Code> doesn't mention <Code>k</Code> at all, so it's invariant under the innermost loop
+            regardless of the choice — a wash for <Code>in1</Code> either way. <Code>scale[k]</Code>, being{' '}
+            <em>only</em> a function of <Code>k</Code>, gets sequential access precisely when <Code>k</Code> is
+            innermost, and is otherwise re-scanned wastefully on every outer iteration.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Make the j-loop innermost (order i-k-j).</Good> Then <Code>c[i][j]</Code> and <Code>b[k][j]</Code> are
-            accessed along their contiguous last index (sequential, factor <Code>l</Code>), and <Code>a[i][k]</Code> is
-            invariant in <Code>j</Code>. The total <Code>2n³/l + n²/l</Code> is a factor <Code>l</Code> below the naive{' '}
-            <Code>i</Code>-innermost order — for <Code>n = 512</Code> this halved the measured runtime.
+            <Good>Make k innermost (order i-j-k):</Good> total <Code>3n³/l + n²/l</Code>, roughly a factor{' '}
+            <Code>l</Code> below either alternative — the same order-of-magnitude win the lecture's matrix
+            multiplication gets, but derived here from a genuinely different reference set: notice the extra{' '}
+            <Code>scale[k]</Code> vector didn't change the answer, it only <em>reinforced</em> it (its own preferred
+            loop already agreed with the two big arrays). That won't always happen — Q2 is exactly the case where a
+            reference's own preference is a tie and other references must decide; here a third factor happened to
+            agree unanimously instead.
           </Panel>
         </>
       }

@@ -6,6 +6,7 @@ import {
   Code,
   Pre,
   Formula,
+  Table,
   Panel,
   Good,
   Bad,
@@ -267,34 +268,55 @@ const FusionSection: React.FC = () => (
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.5, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.5, easy → hardest — all on <em>fresh</em> code, not the lecture examples. Q1 is
+      fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Is reversal legal here?"
+      title="Two references, two verdicts — check both"
       statement={
         <>
-          <p className="mb-2">May this loop be reversed? Justify, and write the reversed loop if so.</p>
-          <Pre>{`for (i = 0; i < n; i++)
-  a[i] = b[i] * 2 + 1;`}</Pre>
+          <p className="mb-2">
+            The loop below has two array references. Check <em>each</em> for a loop-carried dependence separately, then
+            give the overall verdict on reversal.
+          </p>
+          <Pre>{`for (i = 0; i < n; i++) {
+  s[i] = t[i] + 1;
+  u[i] = s[i] * v[i];
+}`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>Check for loop-carried dependences.</strong> Iteration <Code>i</Code> writes <Code>a[i]</Code> and
-            reads only <Code>b[i]</Code> — no iteration reads or writes another iteration's data. The loop carries{' '}
-            <strong>no</strong> dependence.
+            <strong>Reference by reference.</strong> A dependence is loop-<em>carried</em> only if it crosses iterations
+            (nonzero distance in <Code>i</Code>):
           </p>
-          <Pre>{`for (i = n-1; i >= 0; i--)
-  a[i] = b[i] * 2 + 1;`}</Pre>
+          <Table
+            head={['Reference', 'Same iteration or across?', 'Carried?']}
+            rows={[
+              [<><Code>t[i]</Code> read by <Code>s[i]</Code></>, 'both index i — same iteration', 'no (distance 0)'],
+              [<><Code>s[i]</Code> written then read by <Code>u[i]</Code></>, 'both index i — same iteration', 'no (distance 0)'],
+              [<><Code>v[i]</Code> read by <Code>u[i]</Code></>, 'same iteration', 'no'],
+            ]}
+          />
+          <p className="text-sm mb-1">
+            Every dependence here is <strong>loop-independent</strong> (distance 0, entirely within one iteration) — none
+            is carried across iterations. Reversal only ever needs to negate <em>carried</em> distances; there are none
+            to negate.
+          </p>
+          <Pre>{`for (i = n-1; i >= 0; i--) {
+  s[i] = t[i] + 1;
+  u[i] = s[i] * v[i];
+}`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal.</Good> With no loop-carried dependence, iteration order is irrelevant, so running backward
-            produces exactly the same array <Code>a</Code>.
+            <Good>Legal.</Good> Each iteration is a self-contained unit of work reading only that iteration's data —
+            running the iterations in any order, including reversed, computes the same result.{' '}
+            <Good>Pattern for Q2–Q5:</Good> check every reference's distance, not just "does <Code>i</Code> appear
+            twice" — a same-index reference is always distance 0 and never blocks reversal.
           </Panel>
         </>
       }
@@ -303,21 +325,36 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={2}
       diff="Easy"
-      title="When reversal breaks"
+      title="A carried dependence hiding behind unrelated code"
       statement={
         <>
-          <p className="mb-2">Explain why this loop may <em>not</em> be reversed.</p>
-          <Pre>{`for (i = 1; i < n; i++)
-  a[i] = a[i-1] + 1;`}</Pre>
+          <p className="mb-2">
+            One statement in this loop carries a dependence; the other does not. Identify which, and decide whether the
+            whole loop may be reversed.
+          </p>
+          <Pre>{`for (i = 1; i < n; i++) {
+  y[i] = x[i] - x[i-1];
+  z[i] = w[i] * 2;
+}`}</Pre>
         </>
       }
       solution={
         <>
-          <Panel className="text-sm leading-relaxed">
-            <Bad>Illegal.</Bad> The loop carries a flow dependence of distance <Code>1</Code>: <Code>a[i]</Code> uses{' '}
-            <Code>a[i−1]</Code> from the previous iteration. Reversal <strong>negates</strong> the distance to{' '}
-            <Code>−1</Code>, so a backward run would compute <Code>a[i]</Code> before <Code>a[i−1]</Code> exists — reading
-            an old/uninitialised value. Reversal is correct only when the loop carries <strong>no</strong> dependence.
+          <p className="text-sm mb-1">
+            <Code>y[i] = x[i] - x[i-1]</Code> only <em>reads</em> two elements of <Code>x</Code> — it never writes{' '}
+            <Code>x</Code>, so despite the <Code>i</Code> / <Code>i−1</Code> pattern there is <strong>no dependence at
+            all</strong> here (two reads never conflict). <Code>z[i] = w[i] * 2</Code> is entirely local to iteration{' '}
+            <Code>i</Code>.
+          </p>
+          <Panel className="text-sm leading-relaxed mt-1">
+            <Good>Legal.</Good> Neither statement carries a dependence (the first only reads across iterations, which is
+            always safe), so the whole loop may be reversed:
+            <Pre>{`for (i = n-1; i >= 1; i--) {
+  y[i] = x[i] - x[i-1];
+  z[i] = w[i] * 2;
+}`}</Pre>
+            <strong>Trap to avoid:</strong> seeing <Code>x[i-1]</Code> next to <Code>x[i]</Code> and assuming a
+            dependence — a dependence needs a <em>write</em> on at least one side.
           </Panel>
         </>
       }
@@ -326,26 +363,38 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={3}
       diff="Medium"
-      title="Effect on the distance vector"
+      title="Distance vector in a 2-D loop — which dimension blocks reversal of which loop?"
       statement={
         <>
           <p className="mb-2">
-            A single loop over <Code>i</Code> has a dependence with distance <Code>2</Code>. (a) What does reversal do to
-            this distance? (b) Is reversal legal? (c) State the general rule reversal has on dependence distances.
+            This nest has a single dependence with distance vector <Code>(0, 3)</Code> in <Code>(i, j)</Code> order. (a)
+            May the <Code>i</Code>-loop alone be reversed? (b) May the <Code>j</Code>-loop alone be reversed? (c) Give the
+            new distance vector for whichever reversal(s) are legal.
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>(a)</strong> Reversal negates the distance: <Code>2 → −2</Code>.{' '}
-            <strong>(b)</strong> <Bad>Illegal</Bad> — a nonzero distance means the loop <em>carries</em> a dependence, and
-            after negation the source would run after the target.
+            Reversing a single loop in a nest negates <strong>only that loop's</strong> component of every distance
+            vector; the other components are untouched.
+          </p>
+          <p className="text-sm mb-1">
+            <strong>(a) Reverse <Code>i</Code>:</strong> its component is already <Code>0</Code> — negating 0 gives 0.
+            The vector stays <Code>(0, 3)</Code>, still lexicographically positive. <Good>Legal</Good> (unsurprising: a
+            dependence not carried by a loop is indifferent to that loop's direction).
+          </p>
+          <p className="text-sm mb-1">
+            <strong>(b) Reverse <Code>j</Code>:</strong> its component is <Code>3 ≠ 0</Code> — the dependence <em>is</em>{' '}
+            carried by <Code>j</Code>. Negating gives <Code>(0, −3)</Code>, lexicographically <em>negative</em>.{' '}
+            <Bad>Illegal.</Bad>
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <strong>(c)</strong> Loop reversal <strong>negates every dependence distance</strong> the loop carries.
-            Therefore it is correct only when the loop carries no dependence (all carried distances are <Code>0</Code>, i.e.
-            none) — otherwise a positive distance flips negative and is violated.
+            <strong>(c)</strong> Only the <Code>i</Code>-reversal is legal, and it leaves the vector unchanged at{' '}
+            <Code>(0, 3)</Code> (reversing a loop that carries nothing is a legal no-op on the dependence, though it
+            still changes the physical access order — useful e.g. to fix locality without touching correctness).{' '}
+            <strong>Rule:</strong> in a nest, ask "does <em>this specific</em> loop carry the dependence?" — only its own
+            distance component matters for its own legality.
           </Panel>
         </>
       }
@@ -354,40 +403,44 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Reverse to enable fusion"
+      title="Reversal unlocks interchange, not fusion"
       statement={
         <>
           <p className="mb-2">
-            Show that these two loops cannot be fused as written, then use loop reversal to make fusion legal and give the
-            fused loop.
+            This nest has one dependence, distance vector <Code>(1, −1)</Code> in <Code>(i, j)</Code> order — direction{' '}
+            <Code>(&lt;, &gt;)</Code>, the one case §4.4 forbids for interchange. (a) Show reversing the <Code>j</Code>{' '}
+            loop changes the picture. (b) Is interchange now legal? (c) Give the final code (reversed + interchanged).
           </p>
-          <Pre>{`for (i = 0; i <= n; i++) {
-  a[i] = b[i] + 1;
-  c[i] = a[i] / 2;
-}
-for (i = 0; i <= n; i++)
-  d[i] = c[i+1] + 1;`}</Pre>
+          <Pre>{`for (i = 1; i < n; i++)
+  for (j = 1; j < m; j++)
+    g[i][j] = g[i-1][j+1] + 1;`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>Blocked forward.</strong> Fusing directly, <Code>d[i] = c[i+1] + 1</Code> would read{' '}
-            <Code>c[i+1]</Code> before the first body writes it at iteration <Code>i+1</Code> — a backward{' '}
-            <Code>body-2 → body-1</Code> dependence (the §4.2 trap). Illegal.
+            <strong>(a)</strong> The <Code>j</Code>-component of the distance is <Code>−1 ≠ 0</Code>, so <Code>j</Code>{' '}
+            does carry part of the dependence — reversing it is only legal if that's consistent with the whole vector
+            staying lexicographically positive. Check: negate just the <Code>j</Code> entry: <Code>(1,−1) → (1, 1)</Code>.
+            Still lexicographically positive (leading entry <Code>1 &gt; 0</Code>) ⇒ <Good>reversal of j is legal</Good>{' '}
+            (the sign of the leading, <Code>i</Code>, entry is what's actually protecting correctness here).
           </p>
+          <Pre>{`for (i = 1; i < n; i++)
+  for (j = m-1; j >= 1; j--)     // j reversed
+    g[i][j] = g[i-1][j+1] + 1;`}</Pre>
           <p className="text-sm mb-1">
-            <strong>Reverse both loops</strong> (neither carries a dependence), then fuse:
+            <strong>(b)</strong> New distance vector <Code>(1, 1)</Code> ⇒ direction <Code>(&lt;, &lt;)</Code> — not{' '}
+            <Code>(&lt;,&gt;)</Code> anymore. <Good>Interchange is now legal</Good> (swap gives <Code>(&lt;,&lt;)</Code>{' '}
+            again, still positive).
           </p>
-          <Pre>{`for (i = n; i > 0; i--) {
-  a[i] = b[i] + 1;
-  c[i] = a[i] / 2;
-  d[i] = c[i+1] + 1;
-}`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal.</Good> In the reversed order iteration <Code>i+1</Code> runs before iteration <Code>i</Code>, so{' '}
-            <Code>c[i+1]</Code> is already computed when <Code>d[i]</Code> reads it. The forward reference has become a
-            backward one in execution order, so the fused body is correct.
+            <strong>(c)</strong> Reverse <Code>j</Code>, then interchange:
+            <Pre>{`for (j = m-1; j >= 1; j--)
+  for (i = 1; i < n; i++)
+    g[i][j] = g[i-1][j+1] + 1;`}</Pre>
+            <Good>Takeaway:</Good> reversal doesn't only enable fusion (§4.5's headline example) — here it repairs a{' '}
+            <Code>(&lt;,&gt;)</Code> direction vector so <strong>interchange</strong> (§4.4) becomes legal too, the same
+            role loop skewing plays in §4.6 by a different mechanism.
           </Panel>
         </>
       }
@@ -396,31 +449,46 @@ for (i = 0; i <= n; i++)
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Reverse only one of two loops?"
+      title="Reversal alone cannot always save a fusion — prove it"
       statement={
         <>
           <p className="mb-2">
-            In Q4 both loops were reversed. Suppose you reverse <strong>only the second</strong> loop and leave the first
-            counting up. (a) Is each loop individually still legal? (b) Can the two loops now be fused? Explain carefully.
+            Someone claims that reversing both loops below (as in the lecture's <Code>c[i+1]</Code> example) will make
+            fusion legal. (a) Try it and show the claim fails. (b) Diagnose exactly why this case differs from the
+            lecture example. (c) State a general condition for when reversal-then-fuse works.
           </p>
+          <Pre>{`for (i = 0; i <= n; i++)  e[i] = f[i] * 2;
+for (i = 0; i <= n; i++)  g[i] = e[i-1] + e[i+1];`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>(a)</strong> Yes — each loop carries no dependence, so reversing either one in isolation is legal and
-            computes the same arrays.
+            <strong>(a) Try the reversal.</strong> Both loops carry no internal dependence, so both may be reversed:
+          </p>
+          <Pre>{`for (i = n; i >= 0; i--)  e[i] = f[i] * 2;
+for (i = n; i >= 0; i--)  g[i] = e[i-1] + e[i+1];`}</Pre>
+          <p className="text-sm mb-1">
+            Attempt to fuse under a common descending header. The body now needs, at iteration <Code>i</Code>: read{' '}
+            <Code>e[i-1]</Code> (not yet computed — comes <em>later</em> in the descending order) <em>and</em> read{' '}
+            <Code>e[i+1]</Code> (already computed — came earlier). <strong>One</strong> of the two references is now
+            satisfied, but the other (<Code>e[i-1]</Code>) is <Bad>not</Bad> — reversal fixed the forward reference but
+            broke the backward one.
           </p>
           <p className="text-sm mb-1">
-            <strong>(b)</strong> <Bad>No, they cannot be fused.</Bad> Fusion requires <em>both</em> bodies to iterate in
-            the <strong>same</strong> direction over the same index so they can share one header. With the first loop
-            ascending (<Code>i = 0 … n</Code>) and the second descending (<Code>i = n … 0</Code>), there is no common loop
-            counter to merge them under.
+            <strong>(b) Why it differs.</strong> The lecture's <Code>c[i+1]</Code> example has <em>only one</em>{' '}
+            problematic reference (a pure forward stencil). Here <Code>g[i]</Code> reads <strong>both</strong>{' '}
+            neighbours of <Code>e</Code> — a symmetric stencil. Reversal flips which side is "ahead", but it can never
+            put <em>both</em> neighbours ahead of the consumer at once — exactly the same obstruction as the symmetric
+            stencil in §4.2's harder fusion questions.
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Point:</Good> reversal enables fusion here only because we reverse <strong>both</strong> loops — that
-            simultaneously (i) keeps a common iteration direction and (ii) turns the forward reference{' '}
-            <Code>c[i+1]</Code> into a satisfied backward one. Reversing just one achieves neither jointly.
+            <strong>(c) General condition:</strong> reversal-then-fuse repairs exactly <em>one</em> forward (or
+            backward) reference by flipping execution order. It works when the blocking dependence is between the two
+            loops in <strong>one direction only</strong>. When a consumer needs values from <em>both</em> sides of the
+            producer (a symmetric access pattern), no single traversal direction satisfies both references
+            simultaneously, and fusion by reversal alone is impossible — a genuinely different producer/consumer
+            restructuring (e.g. extra buffering) would be needed instead.
           </Panel>
         </>
       }

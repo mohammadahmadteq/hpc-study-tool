@@ -5,6 +5,7 @@ import {
   Code,
   Pre,
   Formula,
+  Table,
   Panel,
   Good,
   Stepper,
@@ -375,39 +376,49 @@ const WorkedSection: React.FC = () => (
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.8, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.8, easy → hardest — all on <em>fresh</em> numbers, not the lecture's{' '}
+      <Code>ts=20, to=5, i=1..50, j=i..60</Code> example. Q1 is fully worked to set the pattern; do the rest on paper,
+      then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Tile a single loop"
+      title="Tile a single loop — and check the covering"
       statement={
         <>
           <p className="mb-2">
-            Tile this loop with tile size <Code>ts = 4</Code> and offset <Code>to = 2</Code>. Give the first and last tile
-            and the resulting nest.
+            Tile this loop with tile size <Code>ts = 5</Code> and offset <Code>to = 3</Code>. Give the first and last
+            tile, the resulting nest, and verify explicitly that every original iteration is covered exactly once.
           </p>
-          <Pre>{`for (i = 3; i <= 14; i++)
+          <Pre>{`for (i = 4; i <= 19; i++)
   a[i] = a[i] + 1;`}</Pre>
         </>
       }
       solution={
         <>
-          <Formula>{`first tile: ⌊(3−2)/4⌋·4+2 = ⌊0.25⌋·4+2 = 2
-last  tile: ⌊(14−2)/4⌋·4+2 = ⌊3⌋·4+2 = 14`}</Formula>
-          <Pre>{`for (it = 2; it <= 14; it += 4)
-  for (i = max(3, it); i <= min(14, it+3); i++)
+          <Formula>{`first tile: ⌊(4−3)/5⌋·5+3 = ⌊0.2⌋·5+3 = 0·5+3 = 3
+last  tile: ⌊(19−3)/5⌋·5+3 = ⌊3.2⌋·5+3 = 3·5+3 = 18`}</Formula>
+          <Pre>{`for (it = 3; it <= 18; it += 5)
+  for (i = max(4, it); i <= min(19, it+4); i++)
     a[i] = a[i] + 1;`}</Pre>
           <p className="text-sm mb-1">
-            Tiles start at <Code>2, 6, 10, 14</Code>. The first tile begins at <Code>2</Code> (before <Code>lo = 3</Code>),
-            so <Code>max(3, 2) = 3</Code> clips it; the last tile <Code>[14, 17]</Code> is clipped to <Code>14</Code>.
+            Tiles anchor at <Code>3, 8, 13, 18</Code> (step 5). <strong>Check the covering</strong> tile by tile:
           </p>
+          <Table
+            head={['Tile it', 'Raw range [it, it+4]', 'Clipped by max(4,·)/min(19,·)']}
+            rows={[
+              ['3', '[3, 7]', '[4, 7]'],
+              ['8', '[8, 12]', '[8, 12]'],
+              ['13', '[13, 17]', '[13, 17]'],
+              ['18', '[18, 22]', '[18, 19]'],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Covers [3, 14] exactly:</Good> tiles give <Code>3–5, 6–9, 10–13, 14</Code> — every iteration once. Tiling
-            of one loop is exactly strip mining with a chosen corner offset.
+            <Good>Covers [4, 19] exactly:</Good> <Code>4–7, 8–12, 13–17, 18–19</Code> — every iteration exactly once, no
+            gap, no overlap. <strong>Pattern for Q2–Q5:</strong> compute first/last with the floor formula, then
+            sanity-check coverage tile by tile before trusting the result — exactly what an exam grader will look for.
           </Panel>
         </>
       }
@@ -416,29 +427,30 @@ last  tile: ⌊(14−2)/4⌋·4+2 = ⌊3⌋·4+2 = 14`}</Formula>
     <QuestionCard
       n={2}
       diff="Easy"
-      title="Tiling vs strip mining"
+      title="Strip mining as tiling with a forced offset"
       statement={
         <>
           <p className="mb-2">
-            How does loop tiling relate to strip mining? What do the tile size <Code>ts</Code> and offset <Code>to</Code>{' '}
-            control, and how are dependence distances handled?
+            §4.7's strip mining never used an offset <Code>to</Code> and its first strip always started exactly at{' '}
+            <Code>lo</Code> — no negative start, no <Code>max()</Code> ever needed on the lower end. Explain strip
+            mining as a <em>special case</em> of tiling: what value of <Code>to</Code> makes the tiling formulas
+            reproduce that behaviour, and why?
           </p>
         </>
       }
       solution={
         <>
-          <Panel className="text-sm leading-relaxed">
-            <strong>Tiling generalises strip mining to several nested loops:</strong> instead of 1-D strips it uses{' '}
-            <em>rectangular tiles</em> of the multi-dimensional iteration space, each handled by inner sub-loops.
-            <div className="mt-1">
-              <Code>ts</Code> sets the tile edge length; <Code>to</Code> (with <Code>0 ≤ to ≤ ts</Code>) fixes the tile{' '}
-              <strong>corner points</strong> at <Code>to + k·ts</Code>. A tile of a dimension starts at the iteration with{' '}
-              <Code>i mod ts = to</Code>.
-            </div>
-            <div className="mt-1">
-              <strong>Dependence distances</strong> are adapted <strong>the same way as for strip mining</strong>:{' '}
-              <Code>d → (d div ts, d mod ts)</Code>, with a second vector when <Code>d mod ts ≠ 0</Code>.
-            </div>
+          <p className="text-sm mb-1">
+            Set <Code>to = lo mod ts</Code>. Then <Code>lo − to</Code> is an exact multiple of <Code>ts</Code>, so{' '}
+            <Code>⌊(lo−to)/ts⌋·ts + to = (lo−to) + to = lo</Code> — the first tile lands <em>exactly</em> on{' '}
+            <Code>lo</Code>, with nothing before it to clip.
+          </p>
+          <Panel className="text-sm leading-relaxed mt-1">
+            <Good>Strip mining = tiling with <Code>to</Code> chosen so <Code>lo</Code> itself is a corner.</Good> That is
+            exactly why §4.7's strip-mined form <Code>for (is = lo; is {'<='} hi; is += s)</Code> could start the outer
+            loop directly at <Code>lo</Code> with no <Code>max()</Code> guard — general tiling exposes the offset as a
+            free parameter, and strip mining is the case where that freedom is pinned down to avoid a partial first
+            tile.
           </Panel>
         </>
       }
@@ -447,26 +459,36 @@ last  tile: ⌊(14−2)/4⌋·4+2 = ⌊3⌋·4+2 = 14`}</Formula>
     <QuestionCard
       n={3}
       diff="Medium"
-      title="First and last tile with a negative start"
+      title="A tiling where the first tile starts well before lo"
       statement={
         <>
           <p className="mb-2">
-            For a loop <Code>for (i = 1; i {'<='} 50; i++)</Code> tiled with <Code>ts = 20</Code>, <Code>to = 5</Code>,
-            compute the first and last tile starts and write the outer tile-loop header.
+            For <Code>for (i = 7; i {'<='} 42; i++)</Code> tiled with <Code>ts = 12</Code>, <Code>to = 9</Code>, compute
+            the first and last tile, and list all four tiles with their clipped ranges.
           </p>
         </>
       }
       solution={
         <>
-          <Formula>{`first: ⌊(1−5)/20⌋·20+5 = ⌊−0.2⌋·20+5 = (−1)·20+5 = −15
-last:  ⌊(50−5)/20⌋·20+5 = ⌊2.25⌋·20+5 = 2·20+5 = 45`}</Formula>
-          <Pre>{`for (it = -15; it <= 45; it += 20)
-  for (i = max(1, it); i <= min(50, it+19); i++)
+          <Formula>{`first: ⌊(7−9)/12⌋·12+9 = ⌊−0.167⌋·12+9 = (−1)·12+9 = −3
+last:  ⌊(42−9)/12⌋·12+9 = ⌊2.75⌋·12+9 = 2·12+9 = 33`}</Formula>
+          <Pre>{`for (it = -3; it <= 33; it += 12)
+  for (i = max(7, it); i <= min(42, it+11); i++)
     ...`}</Pre>
+          <Table
+            head={['Tile it', 'Raw range', 'Clipped']}
+            rows={[
+              ['−3', '[−3, 8]', '[7, 8]'],
+              ['9', '[9, 20]', '[9, 20]'],
+              ['21', '[21, 32]', '[21, 32]'],
+              ['33', '[33, 44]', '[33, 42]'],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            The first tile starts at <Code>−15</Code> — well before <Code>lo = 1</Code>. That is fine: the tile corner is
-            anchored to the offset grid, and <Code>max(1, it)</Code> discards the part outside the iteration space.
-            Tiles: <Code>[−15,4], [5,24], [25,44], [45,64]</Code>, clipped to <Code>[1,4],[5,24],[25,44],[45,50]</Code>.
+            <Good>Covers [7, 42] exactly.</Good> The first tile's raw range starts at <Code>−3</Code>, well before{' '}
+            <Code>lo = 7</Code> — harmless, since <Code>max(7, it)</Code> clips it. This is precisely the phenomenon Q2
+            explained: <Code>to = 9 ≠ 7 mod 12 = 7</Code>, so <Code>lo</Code> is <em>not</em> itself a corner, and the
+            first tile inevitably starts early.
           </Panel>
         </>
       }
@@ -475,34 +497,40 @@ last:  ⌊(50−5)/20⌋·20+5 = ⌊2.25⌋·20+5 = 2·20+5 = 45`}</Formula>
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Tile a 2-D nest"
+      title="Tile a 2-D nest with the variable bound on top"
       statement={
         <>
           <p className="mb-2">
-            Tile both loops of this nest with <Code>ts = 20</Code>, <Code>to = 5</Code>. Give the resulting four-deep loop
-            nest.
+            Tile both loops with <Code>ts = 15</Code>, <Code>to = 5</Code>. Give the resulting four-deep loop nest.
+            (Note: here it's the <em>upper</em> bound of <Code>j</Code> that depends on <Code>i</Code>, the mirror image
+            of a lower-bound dependency.)
           </p>
-          <Pre>{`for (i = 1; i <= 50; i++)
-  for (j = i; j <= 60; j++)
-    a[i][j] = a[i][j] + 1;`}</Pre>
+          <Pre>{`for (i = 1; i <= 40; i++)
+  for (j = 1; j <= i; j++)
+    b[i][j] = b[i][j] + 1;`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>i-loop</strong> (<Code>lo=1, hi=50</Code>): tiles from <Code>−15</Code> to <Code>45</Code>.{' '}
-            <strong>j-loop</strong> (<Code>lo=i, hi=60</Code>): first tile <Code>⌊(i−5)/20⌋·20+5</Code>, last{' '}
-            <Code>⌊(60−5)/20⌋·20+5 = 45</Code>.
+            <strong>i-loop</strong> (<Code>lo=1, hi=40</Code>): first <Code>⌊(1−5)/15⌋·15+5 = −10</Code>, last{' '}
+            <Code>⌊(40−5)/15⌋·15+5 = 35</Code>.
           </p>
-          <Pre>{`for (it = -15; it <= 45; it += 20)
-  for (i = max(1, it); i <= min(50, it+19); i++)
-    for (jt = ⌊(i-5)/20⌋·20+5; jt <= 45; jt += 20)
-      for (j = max(i, jt); j <= min(60, jt+19); j++)
-        a[i][j] = a[i][j] + 1;`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>j-loop</strong> (<Code>lo=1</Code> constant, <Code>hi=i</Code> variable): first tile is{' '}
+            <Code>⌊(1−5)/15⌋·15+5 = −10</Code> — <strong>constant</strong>, since <Code>lo=1</Code> never changes. The{' '}
+            <em>last</em> tile is the one that now depends on <Code>i</Code>: <Code>⌊(i−5)/15⌋·15+5</Code>.
+          </p>
+          <Pre>{`for (it = -10; it <= 35; it += 15)
+  for (i = max(1, it); i <= min(40, it+14); i++)
+    for (jt = -10; jt <= ⌊(i-5)/15⌋·15+5; jt += 15)
+      for (j = max(1, jt); j <= min(i, jt+14); j++)
+        b[i][j] = b[i][j] + 1;`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Correct.</Good> Each pair (<Code>it</Code>, <Code>i</Code>) tiles the first dimension; (<Code>jt</Code>,{' '}
-            <Code>j</Code>) tiles the second. The <Code>jt</Code> start depends on <Code>i</Code> because the original{' '}
-            <Code>j</Code>-bound <Code>j = i</Code> is non-rectangular.
+            <Good>Correct.</Good> Contrast with the lecture's own example: there the <em>lower</em> bound of the inner
+            loop depended on the outer index, so tiling made the <em>first</em>-tile formula i-dependent. Here the{' '}
+            <em>upper</em> bound depends on <Code>i</Code>, so it's the <em>last</em>-tile formula that carries the{' '}
+            <Code>i</Code> — same mechanism, mirrored.
           </Panel>
         </>
       }
@@ -511,32 +539,51 @@ last:  ⌊(50−5)/20⌋·20+5 = ⌊2.25⌋·20+5 = 2·20+5 = 45`}</Formula>
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Interchange so the inner loops process one tile"
+      title="Interchange the mirrored case — derive, don't guess"
       statement={
         <>
           <p className="mb-2">
-            Continue Q4: interchange the <Code>i</Code>-loop with the <Code>jt</Code>-loop so the two within-tile loops are
-            innermost. Give the final nest and derive the new <Code>jt</Code> lower bound.
+            Continue Q4: interchange the <Code>i</Code>-loop with the <Code>jt</Code>-loop so the two within-tile loops
+            are innermost. (a) Derive the new bound that <Code>jt</Code> needs. (b) Explain why, unlike Q4's lecture
+            counterpart, it is <Code>jt</Code>'s <em>upper</em> bound — not lower — that must change.
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            Insert the lower bounds of <Code>i</Code> into <Code>jt = ⌊(i−5)/20⌋·20+5</Code> and take the max:
+            <strong>(a) Derive the bound.</strong> Before interchange, for a fixed <Code>i</Code>, <Code>jt</Code> climbs
+            up to <Code>U(i) = ⌊(i−5)/15⌋·15+5</Code> (i's own tile corner). After hoisting <Code>jt</Code> above{' '}
+            <Code>i</Code>, its new upper bound must be the <strong>largest</strong> <Code>U(i)</Code> reachable over{' '}
+            <em>all</em> <Code>i</Code> in the current <Code>it</Code>-tile — and since <Code>U</Code> is non-decreasing
+            in <Code>i</Code>, that maximum occurs at the tile's own largest <Code>i</Code>, namely{' '}
+            <Code>min(40, it+14)</Code>:
           </p>
-          <Formula>{`i = 1   ⇒  jt = ⌊(1−5)/20⌋·20+5 = −15
-i = it  ⇒  jt = ⌊(it−5)/20⌋·20+5 = it   (it ≡ 5 mod 20 ⇒ ⌊(it−5)/20⌋·20 = it−5)
-⇒  jt lower bound = max(−15, it)`}</Formula>
-          <Pre>{`for (it = -15; it <= 45; it += 20)
-  for (jt = max(-15, it); jt <= 45; jt += 20)
-    for (i = max(1, it); i <= min(50, it+19); i++)
-      for (j = max(i, jt); j <= min(60, jt+19); j++)
-        a[i][j] = a[i][j] + 1;`}</Pre>
+          <Formula>{`jt upper bound = U(min(40, it+14)) = ⌊(min(40,it+14) − 5)/15⌋·15 + 5`}</Formula>
+          <p className="text-sm mb-1">
+            Now simplify: <Code>min(40, it+14)</Code> always lies <em>inside</em> <Code>it</Code>'s own tile{' '}
+            <Code>[it, it+14]</Code> (it can't reach the next corner <Code>it+15</Code>). So its tile-corner is simply{' '}
+            <Code>it</Code> itself:
+          </p>
+          <Formula>{`⇒  jt upper bound = it`}</Formula>
+          <Pre>{`for (it = -10; it <= 35; it += 15)
+  for (jt = -10; jt <= it; jt += 15)
+    for (i = max(1, it); i <= min(40, it+14); i++)
+      for (j = max(1, jt); j <= min(i, jt+14); j++)
+        b[i][j] = b[i][j] + 1;`}</Pre>
+          <p className="text-sm mb-1">
+            (The <Code>i</Code>-loop's own bounds are untouched by the interchange — only the loop being <em>hoisted</em>{' '}
+            needs a bound rederived, exactly as in the lecture's case.)
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Cache-blocked form.</Good> The two outer loops <Code>it, jt</Code> select a tile; the two inner loops{' '}
-            <Code>i, j</Code> sweep exactly that tile. The interchange is legal by the §4.4 direction-vector condition, and
-            the <Code>max(−15, it)</Code> keeps the <Code>jt</Code> range consistent with the outer <Code>it</Code>.
+            <strong>(b)</strong> In the lecture's Q4-analogue, the inner loop's <em>lower</em> bound depended on{' '}
+            <Code>i</Code> (because <Code>j</Code>'s lower bound there was <Code>i</Code> itself), so hoisting required
+            fixing a lower bound — solved with a <Code>max</Code>. Here <Code>j</Code>'s <em>upper</em> bound is{' '}
+            <Code>i</Code>, so the dependency sits on <Code>jt</Code>'s upper bound instead, and hoisting resolves it
+            with the symmetric idea (take the extremal value over the tile) — it simply comes out as an upper limit,
+            needing no explicit <Code>min</Code> here only because it collapsed to the clean closed form <Code>it</Code>.
+            <strong> General rule:</strong> whichever original bound (lower or upper) carries the outer index, hoisting
+            that loop past it requires re-deriving <em>that same side</em> of the hoisted loop's range.
           </Panel>
         </>
       }

@@ -429,38 +429,60 @@ const WorkedSection: React.FC = () => (
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.7, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.7, easy → hardest — all on <em>fresh</em> numbers, not the lecture's{' '}
+      <Code>d=3, s=5</Code> example. Q1 is fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Strip-mine a loop"
+      title="Strip-mine, split the distance, and classify every source iteration"
       statement={
         <>
-          <p className="mb-2">Strip-mine this loop with block size <Code>s = 4</Code>, and state its application.</p>
-          <Pre>{`for (i = 1; i <= 10; i++)
-  a[i] = b[i] * 2;`}</Pre>
+          <p className="mb-2">
+            Strip-mine with <Code>s = 6</Code>, split the dependence's distance into its vector(s), and state{' '}
+            <em>exactly</em> which source iterations (by residue) produce which vector.
+          </p>
+          <Pre>{`for (i = 1; i <= 20; i++)
+  x[i+8] = x[i] + y[i];`}</Pre>
         </>
       }
       solution={
         <>
+          <p className="text-sm mb-1"><strong>Step 1 — strip-mine</strong> (block size <Code>s = 6</Code>):</p>
+          <Pre>{`for (is = 1; is <= 20; is += 6)
+  for (i = is; i <= min(20, is+5); i++)
+    x[i+8] = x[i] + y[i];`}</Pre>
           <p className="text-sm mb-1">
-            Split into an outer block loop (step <Code>s = 4</Code>) and an inner strip loop, clipped by <Code>min</Code>:
+            Strips: <Code>{'{1..6}'}</Code>, <Code>{'{7..12}'}</Code>, <Code>{'{13..18}'}</Code>, <Code>{'{19..20}'}</Code>{' '}
+            (last one partial — only 2 elements).
           </p>
-          <Pre>{`for (is = 1; is <= 10; is += 4)
-  for (i = is; i <= min(10, is+3); i++)
-    a[i] = b[i] * 2;`}</Pre>
+          <p className="text-sm mb-1"><strong>Step 2 — split the distance</strong> <Code>d = 8</Code>:</p>
+          <Formula>{`d div s = 8 div 6 = 1        d mod s = 8 mod 6 = 2
+primary:     (1, 2)
+d mod s = 2 ≠ 0  ⇒  additional: (1+1, 2−6) = (2, −4)`}</Formula>
           <p className="text-sm mb-1">
-            Strips: <Code>{'{1..4}'}</Code>, <Code>{'{5..8}'}</Code>, <Code>{'{9..10}'}</Code> — the last is partial, so{' '}
-            <Code>min(10, 9+3) = 10</Code> keeps it in range.
+            Notice the primary vector's block-component is already <Code>1</Code>, not <Code>0</Code> — unlike a case
+            where <Code>d &lt; s</Code>, here <Code>d = 8 &gt; s = 6</Code> means <em>even the "normal" case</em> always
+            crosses at least one strip boundary.
           </p>
+          <p className="text-sm mb-1">
+            <strong>Step 3 — which iteration gets which?</strong> Write <Code>i</Code>'s in-strip offset as{' '}
+            <Code>o = (i−1) mod 6</Code>. The target is <Code>o</Code> positions into its strip plus <Code>8</Code>{' '}
+            more; it stays one block ahead exactly while <Code>o + 8 &lt; 12</Code>, i.e. <Code>o ≤ 3</Code>:
+          </p>
+          <Table
+            head={['Offset o', 'Example i', 'Vector']}
+            rows={[
+              ['0, 1, 2, 3', 'i = 1,2,3,4  (and 7,8,9,10 …)', <Code>(1, 2)</Code>],
+              ['4, 5', 'i = 5,6  (and 11,12 …)', <Code>(2, −4)</Code>],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Application:</Good> each strip of length 4 fits a <strong>vector register of length 4</strong>, so the
-            inner loop is executed as a single vector instruction. Strip mining alone changes no results; it just adds a
-            loop level to expose the vector-sized blocks.
+            <Good>Pattern for Q2–Q5:</Good> (i) strip-mine with the <Code>min</Code>-clipped inner bound, (ii) compute{' '}
+            <Code>(d div s, d mod s)</Code> and the extra vector when <Code>d mod s ≠ 0</Code>, (iii) don't assume the
+            primary block-component is 0 — check whether <Code>d</Code> is smaller or larger than <Code>s</Code>.
           </Panel>
         </>
       }
@@ -469,26 +491,30 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={2}
       diff="Easy"
-      title="What is the min() for?"
+      title="Count the strips, not just the vectors"
       statement={
         <>
           <p className="mb-2">
-            In the strip-mined form <Code>for (i = is; i {'<='} min(n, is+s−1); i++)</Code>, explain the role of{' '}
-            <Code>min</Code>, and what happens to the loop nesting depth.
+            Strip-mine <Code>for (i = 1; i {'<='} 23; i++) p[i] = q[i] - r[i];</Code> with <Code>s = 8</Code>. How many{' '}
+            <strong>full</strong> strips result, how many elements are in the <strong>partial</strong> strip, and how
+            many total passes through the inner loop (vector operations) does the outer loop issue?
           </p>
         </>
       }
       solution={
         <>
-          <Panel className="text-sm leading-relaxed">
-            <strong>The min guards the last strip.</strong> If <Code>n</Code> is not a multiple of <Code>s</Code>, the
-            final block is <em>partial</em> — <Code>is+s−1</Code> would run past <Code>n</Code>. Taking{' '}
-            <Code>min(n, is+s−1)</Code> stops the inner loop exactly at <Code>n</Code>, so no out-of-range iterations
-            execute.
-            <div className="mt-1">
-              <strong>Nesting depth:</strong> strip mining <em>increases</em> the depth by one — a single loop becomes a
-              two-deep nest (outer blocks, inner strip).
-            </div>
+          <p className="text-sm mb-1">
+            <Code>23 = 2·8 + 7</Code>: two full strips of 8 (<Code>{'{1..8}'}</Code>, <Code>{'{9..16}'}</Code>) and one
+            partial strip of the remaining <Code>7</Code> elements (<Code>{'{17..23}'}</Code>).
+          </p>
+          <Pre>{`for (is = 1; is <= 23; is += 8)
+  for (i = is; i <= min(23, is+7); i++)
+    p[i] = q[i] - r[i];`}</Pre>
+          <Panel className="text-sm leading-relaxed mt-1">
+            <Good>Total outer-loop passes:</Good> <Code>⌈23/8⌉ = 3</Code> — two full-width vector operations (length 8)
+            and one narrower one (length 7, or length 8 with the last position masked off, depending on the target
+            hardware). No dependence here (only reads of <Code>q,r</Code> and a write to a fresh <Code>p</Code>), so all
+            three passes are independent — no correctness issue is even at stake in this particular loop.
           </Panel>
         </>
       }
@@ -497,23 +523,37 @@ const Questions: React.FC = () => (
     <QuestionCard
       n={3}
       diff="Medium"
-      title="Split a distance vector"
+      title="Split, then verify with two concrete iterations"
       statement={
         <>
           <p className="mb-2">
-            A loop carries a dependence of distance <Code>d = 6</Code> and is strip-mined with <Code>s = 4</Code>. Give
-            all resulting distance vectors.
+            A loop carries a dependence of distance <Code>d = 10</Code>, strip-mined with <Code>s = 4</Code>. (a) Derive
+            both distance vectors. (b) Exhibit one concrete source iteration for each vector and verify by computing
+            blocks and offsets directly — don't just trust the formula.
           </p>
         </>
       }
       solution={
         <>
-          <Formula>{`d div s = 6 div 4 = 1        d mod s = 6 mod 4 = 2
-primary:     (1, 2)
-d mod s = 2 ≠ 0  ⇒  additional: (1+1, 2−4) = (2, −2)`}</Formula>
+          <p className="text-sm mb-1"><strong>(a)</strong></p>
+          <Formula>{`d div s = 10 div 4 = 2        d mod s = 10 mod 4 = 2
+primary:     (2, 2)
+additional:  (2+1, 2−4) = (3, −2)`}</Formula>
+          <p className="text-sm mb-1"><strong>(b) Verify directly</strong> (strips are <Code>{'{1-4},{5-8},{9-12},…'}</Code>):</p>
+          <Table
+            head={['Source i', 'Target i+10', 'Block(src) → Block(tgt)', 'Offset(src), Offset(tgt)', 'Vector']}
+            rows={[
+              ['1', '11', '0 → 2', '0, 2', <Code>(2, 2)</Code>],
+              ['3', '13', '0 → 3', '2, 0', <Code>(3, −2)</Code>],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Two vectors:</Good> <Code>(1, 2)</Code> for dependences that stay within a strip, and{' '}
-            <Code>(2, −2)</Code> for those that cross a strip boundary (one extra block, offset back by <Code>s = 4</Code>).
+            <Good>Both check out.</Good> Iteration 1 sits at offset 0, two blocks before its target — matches the
+            primary <Code>(2, 2)</Code> directly. Iteration 3 sits at offset 2: adding <Code>d mod s = 2</Code> would
+            push it to offset 4, which doesn't exist (offsets only run 0–3) — so it spills one <em>extra</em> block
+            (block distance <Code>2+1=3</Code>) and wraps to offset <Code>4−4=0</Code>, giving offset difference{' '}
+            <Code>0 − 2 = −2</Code>: exactly the additional vector <Code>(3, −2)</Code>. Direct computation is the way
+            to double-check the formula on an exam when time allows.
           </Panel>
         </>
       }
@@ -522,32 +562,43 @@ d mod s = 2 ≠ 0  ⇒  additional: (1+1, 2−4) = (2, −2)`}</Formula>
     <QuestionCard
       n={4}
       diff="Hard"
-      title="The full block-size-5 example"
+      title="Two dependences, one strip size — do they split the same way?"
       statement={
         <>
           <p className="mb-2">
-            Strip-mine with <Code>s = 5</Code>, then give the distance vectors and explain which source iterations produce
-            each.
+            Strip-mine with <Code>s = 7</Code>. The loop carries <em>two independent</em> flow dependences. Derive the
+            distance vector(s) for <strong>each</strong> and say whether they need the same number of vectors.
           </p>
-          <Pre>{`for (i = 1; i <= 16; i++)
-  a[i+3] = a[i] + b[i];`}</Pre>
+          <Pre>{`for (i = 1; i <= 24; i++) {
+  u[i+5] = u[i] + 1;
+  v[i+9] = v[i] * 2;
+}`}</Pre>
         </>
       }
       solution={
         <>
-          <Pre>{`for (is = 1; is <= 16; is += 5)
-  for (i = is; i <= min(16, is+4); i++)
-    a[i+3] = a[i] + b[i];`}</Pre>
-          <p className="text-sm mb-1">
-            Original distance <Code>(3)</Code>. Split: <Code>(3 div 5, 3 mod 5) = (0, 3)</Code>; since <Code>3 mod 5 ≠ 0</Code>,
-            additional <Code>(1, 3−5) = (1, −2)</Code>.
-          </p>
-          <StripArcs d={3} s={5} n={16} />
+          <p className="text-sm mb-1"><strong>Strip-mine</strong> (strips <Code>{'{1-7},{8-14},{15-21},{22-24}'}</Code>, last partial):</p>
+          <Pre>{`for (is = 1; is <= 24; is += 7)
+  for (i = is; i <= min(24, is+6); i++) {
+    u[i+5] = u[i] + 1;
+    v[i+9] = v[i] * 2;
+  }`}</Pre>
+          <p className="text-sm mb-1"><strong>u-dependence, d = 5</strong> (note <Code>d &lt; s</Code>):</p>
+          <Formula>{`5 div 7 = 0     5 mod 7 = 5
+primary:    (0, 5)
+additional: (0+1, 5−7) = (1, −2)`}</Formula>
+          <p className="text-sm mb-1"><strong>v-dependence, d = 9</strong> (note <Code>d &gt; s</Code>):</p>
+          <Formula>{`9 div 7 = 1     9 mod 7 = 2
+primary:    (1, 2)
+additional: (1+1, 2−7) = (2, −5)`}</Formula>
           <Panel className="text-sm leading-relaxed mt-1">
-            A source at strip offset <Code>0</Code> or <Code>1</Code> (e.g. <Code>i = 1, 2, 6, 7, 11, 12</Code>) has its
-            target <Code>i+3</Code> in the <strong>same</strong> strip ⇒ <Code>(0, 3)</Code>. A source at offset{' '}
-            <Code>2, 3, 4</Code> (e.g. <Code>i = 3, 4, 5, 8, 9, 10, 13</Code>) crosses into the next strip ⇒{' '}
-            <Code>(1, −2)</Code>.
+            <Good>Both need two vectors</Good> (neither distance is a multiple of 7), but they are <strong>not
+            interchangeable</strong>: the <Code>u</Code>-dependence's primary case (block 0) means <em>some</em>{' '}
+            same-strip pairs exist (e.g. <Code>i=1</Code>: target <Code>6</Code>, same strip) — a real recurrence living
+            inside one vector register. The <Code>v</Code>-dependence's primary block is already <Code>1</Code>, so it
+            never has a same-strip pair (e.g. <Code>i=1</Code>: target <Code>10</Code>, one strip over). Two dependences
+            strip-mined with the same <Code>s</Code> can land in structurally different situations — always redo the
+            split per dependence, never assume they match.
           </Panel>
         </>
       }
@@ -556,32 +607,42 @@ d mod s = 2 ≠ 0  ⇒  additional: (1+1, 2−4) = (2, −2)`}</Formula>
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="When is there no extra dependence?"
+      title="When is the inner (vector) loop actually safe to vectorize?"
       statement={
         <>
           <p className="mb-2">
-            (a) Strip-mine a loop with distance <Code>d = 6</Code> using <Code>s = 3</Code>; give the distance vector(s).
-            (b) Compare with <Code>s = 4</Code>. (c) State the general condition under which strip mining creates{' '}
-            <em>no</em> additional dependence, and explain geometrically.
+            (a) For a single dependence of distance <Code>d &gt; 0</Code> strip-mined with size <Code>s</Code>, state a
+            condition on <Code>d</Code> and <Code>s</Code> that guarantees the inner loop — for any <em>fixed</em> block
+            — carries <strong>no</strong> dependence at all (so it is a genuine, unconditionally-parallel SIMD op). (b)
+            Check this condition against Q1 (<Code>d=8, s=6</Code>) and against the lecture's own <Code>d=3, s=5</Code>{' '}
+            example. (c) Explain in one sentence why real vectorizing compilers pick the vector length this way.
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <strong>(a) s = 3:</strong> <Code>6 div 3 = 2</Code>, <Code>6 mod 3 = 0</Code>. Since <Code>d mod s = 0</Code>,{' '}
-            <Bad>no</Bad> additional dependence — only <Code>(2, 0)</Code>.
+            <strong>(a)</strong> The primary vector's block-component is <Code>d div s</Code>. A source/target pair
+            lands in the <em>same</em> block exactly when that component is <Code>0</Code>, i.e. when <Code>d &lt; s</Code>.
+            So: the inner loop is <strong>guaranteed dependence-free</strong> (no same-strip pair ever occurs, for{' '}
+            <em>any</em> block) <strong>iff <Code>s ≤ d</Code></strong> — the vector length must not exceed the
+            dependence distance.
           </p>
           <p className="text-sm mb-1">
-            <strong>(b) s = 4:</strong> <Code>6 div 4 = 1</Code>, <Code>6 mod 4 = 2 ≠ 0</Code> ⇒ two vectors{' '}
-            <Code>(1, 2)</Code> and <Code>(2, −2)</Code>.
+            <strong>(b) Check Q1</strong> (<Code>d=8,s=6</Code>): <Code>s=6 ≤ d=8</Code> ✓ — and indeed every classified
+            iteration in Q1 landed on block <Code>1</Code> or <Code>2</Code>, never block <Code>0</Code>; the inner loop
+            is genuinely dependence-free there. <strong>Check the lecture's example</strong> (<Code>d=3,s=5</Code>):{' '}
+            <Code>s=5 &gt; d=3</Code> — <Bad>condition fails</Bad>. Indeed its primary vector <Code>(0,3)</Code> has
+            block <Code>0</Code>: sources at offset 0 or 1 (e.g. <Code>i=1,2</Code>) have their target{' '}
+            <em>in the same strip</em> — a real 3-apart recurrence hiding inside one length-5 vector register.
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <strong>(c) Condition:</strong> the additional dependence appears <strong>iff</strong>{' '}
-            <Code>d mod s ≠ 0</Code>. When <Code>s</Code> divides <Code>d</Code> exactly, every dependence spans a whole
-            number of strips and lands at the <em>same</em> offset (offset delta 0) — it never crosses a strip boundary
-            mid-strip, so a single vector <Code>(d/s, 0)</Code> suffices. Otherwise the leftover <Code>d mod s</Code>
-            makes some dependences spill into the next block at a negative offset.
+            <strong>(c)</strong> If the vector length exceeds the smallest dependence distance in the loop, a single SIMD
+            instruction would need to both read an old element and use a value another lane in the <em>same</em>{' '}
+            instruction is simultaneously producing — impossible for genuine hardware vector ops. So compilers cap the
+            vector length at (or split further to stay under) the minimum carried dependence distance, exactly the{' '}
+            <Code>s ≤ d</Code> bound derived in (a); the lecture's <Code>d=3,s=5</Code> nest would need{' '}
+            <Code>s ≤ 3</Code> to be safely vectorized as pure SIMD.
           </Panel>
         </>
       }

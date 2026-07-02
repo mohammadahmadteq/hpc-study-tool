@@ -454,52 +454,64 @@ const NestSection: React.FC = () => (
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.3, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.3, easy → hardest — all on <em>fresh</em> code, not the lecture examples. Q1 is
+      fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Distribute using SCCs and topological order"
+      title="Distribute past a self-cycle and an anti-dependence"
       statement={
         <>
           <p className="mb-2">
-            Build the dependence graph, find the SCCs, and give the distributed loops in a correct order.
+            Build the dependence graph (don't forget dependences of a statement <em>on itself</em>, and check the{' '}
+            <Code>s[i+1]</Code> read carefully), find the SCCs, and distribute maximally. Which of the resulting loops
+            stays sequential internally?
           </p>
           <Pre>{`for (i = 1; i <= n; i++) {
-  s1: x[i] = y[i-1] + 1;
-  s2: y[i] = x[i] * 2;
-  s3: z[i] = y[i] + w[i];
+  s1: p[i] = p[i-1] + q[i];
+  s2: r[i] = p[i] * s[i+1];
+  s3: s[i] = r[i] + 1;
 }`}</Pre>
         </>
       }
       solution={
         <>
-          <p className="text-sm mb-1"><strong>Dependences:</strong></p>
+          <p className="text-sm mb-1"><strong>Step 1 — all dependences, including the sneaky ones:</strong></p>
           <Table
-            head={['Dep', 'Via', 'Distance']}
+            head={['Dep', 'Kind', 'Via', 'Distance']}
             rows={[
-              [<Code>s₁ → s₂</Code>, <Code>x[i]</Code>, '(0)'],
-              [<Code>s₂ → s₁</Code>, <Code>y[i-1]</Code>, '(1)'],
-              [<Code>s₂ → s₃</Code>, <Code>y[i]</Code>, '(0)'],
+              [<Code>s₁ → s₁</Code>, 'flow (self)', <Code>p[i-1]</Code>, '(1)'],
+              [<Code>s₁ → s₂</Code>, 'flow', <Code>p[i]</Code>, '(0)'],
+              [<Code>s₂ → s₃</Code>, 'flow', <Code>r[i]</Code>, '(0)'],
+              [<Code>s₂ → s₃</Code>, 'anti', <><Code>s[i+1]</Code> read at <Code>i</Code>, written at <Code>i+1</Code></>, '(1)'],
             ]}
           />
           <p className="text-sm mb-1">
-            <strong>SCCs:</strong> <Code>s₁ ⇄ s₂</Code> form a cycle (<Code>x[i]</Code> forward, <Code>y[i−1]</Code>{' '}
-            backward) ⇒ <Code>{'{s₁,s₂}'}</Code>; <Code>s₃</Code> alone. <strong>Order:</strong> <Code>{'{s₁,s₂}'}</Code>{' '}
-            before <Code>{'{s₃}'}</Code> (edge s₂→s₃).
+            The <Code>s[i+1]</Code> read looks like it might point backwards, but work it out: iteration <Code>i</Code>{' '}
+            reads <Code>s[i+1]</Code> <em>before</em> iteration <Code>i+1</Code> overwrites it — an anti-dependence{' '}
+            <Code>s₂ → s₃</Code>, the <strong>same direction</strong> as the flow edge. No edge points backwards.
           </p>
-          <Pre>{`for (ib = 0; ib < n; ib++) {   // {s1, s2} — cycle, cannot split
-  x[ib+1] = y[ib] + 1;
-  y[ib+1] = x[ib+1] * 2;
-}
-for (ib = 0; ib < n; ib++)     // {s3}
-  z[ib+1] = y[ib+1] + w[ib+1];`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Step 2 — SCCs.</strong> The only cycle is the self-loop on <Code>s₁</Code>. A self-loop never blocks
+            distribution — the statement cannot be separated from itself:
+          </p>
+          <Formula>{`Z1 = {s1}  (self-cycle → loop stays, but sequential inside)
+Z2 = {s2}      Z3 = {s3}`}</Formula>
+          <p className="text-sm mb-1">
+            <strong>Step 3 — topological order</strong> <Code>Z₁, Z₂, Z₃</Code> (the only one — edges Z₁→Z₂→Z₃):
+          </p>
+          <Pre>{`for (i = 1; i <= n; i++)  p[i] = p[i-1] + q[i];   // Z1 — recurrence
+for (i = 1; i <= n; i++)  r[i] = p[i] * s[i+1];   // Z2
+for (i = 1; i <= n; i++)  s[i] = r[i] + 1;        // Z3`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal:</Good> the cyclic pair stays fused, and putting <Code>s₃</Code>'s loop after preserves the
-            forward dependence <Code>s₂ → s₃</Code> on <Code>y[i]</Code>.
+            <Good>Check the anti-dependence:</Good> loop 2 reads <em>all</em> of <Code>s[2…n+1]</Code> before loop 3
+            overwrites <Code>s[1…n]</Code> — original values, exactly as before. <Good>Which loop stays sequential?</Good>{' '}
+            Z₁: its self-carried recurrence <Code>p[i] = p[i−1] + …</Code> survives inside the loop. Z₂ and Z₃ carry
+            nothing and are now vectorizable. <strong>Pattern:</strong> (i) every dependence incl. self &amp; anti, (ii)
+            SCCs, (iii) topological order, (iv) sanity-check each split pair.
           </Panel>
         </>
       }
@@ -508,31 +520,38 @@ for (ib = 0; ib < n; ib++)     // {s3}
     <QuestionCard
       n={2}
       diff="Easy"
-      title="No cycle — split into the maximum number of loops"
+      title="Enumerate every legal loop order"
       statement={
         <>
-          <p className="mb-2">Distribute this loop into as many loops as legal, and name the advantage.</p>
+          <p className="mb-2">
+            Distribute this loop maximally. Then list <em>all</em> orders in which the resulting loops may legally be
+            emitted, and say which two loops could run concurrently on two cores.
+          </p>
           <Pre>{`for (i = 0; i < n; i++) {
-  s1: a[i] = b[i] + 1;
-  s2: c[i] = d[i] * 2;
-  s3: e[i] = a[i] + c[i];
+  s1: a[i] = in[i] + 1;
+  s2: b[i] = a[i] * 2;
+  s3: c[i] = a[i] - 3;
 }`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            Dependences: <Code>s₁ → s₃</Code> (via <Code>a[i]</Code>, distance 0) and <Code>s₂ → s₃</Code> (via{' '}
-            <Code>c[i]</Code>, distance 0). <strong>No cycle</strong>, so all three can be separated. A valid topological
-            order is <Code>s₁, s₂, s₃</Code> (s₃ must come last):
+            Dependences: <Code>s₁ →(0) s₂</Code> and <Code>s₁ →(0) s₃</Code> (both via <Code>a[i]</Code>);{' '}
+            <Code>s₂</Code> and <Code>s₃</Code> share nothing they write. No cycle ⇒ three loops.
           </p>
-          <Pre>{`for (i = 0; i < n; i++)  a[i] = b[i] + 1;
-for (i = 0; i < n; i++)  c[i] = d[i] * 2;
-for (i = 0; i < n; i++)  e[i] = a[i] + c[i];`}</Pre>
+          <Pre>{`for (i = 0; i < n; i++)  a[i] = in[i] + 1;
+for (i = 0; i < n; i++)  b[i] = a[i] * 2;
+for (i = 0; i < n; i++)  c[i] = a[i] - 3;`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Legal orders</strong> = topological orders of the graph: <Code>s₁</Code> must come first, then{' '}
+            <Code>s₂</Code>/<Code>s₃</Code> in either order — so exactly <strong>2</strong> of the 6 permutations are
+            legal: <Code>(s₁,s₂,s₃)</Code> and <Code>(s₁,s₃,s₂)</Code>.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Advantage:</Good> each loop has a small body and touches fewer arrays ⇒ better instruction-cache
-            behaviour and data locality. (The <Code>s₁</Code> and <Code>s₂</Code> loops are independent and could even run
-            in parallel.)
+            <Good>Concurrency:</Good> the <Code>s₂</Code>- and <Code>s₃</Code>-loops have no edge between them (two reads
+            of <Code>a[i]</Code> do not conflict) — after the <Code>s₁</Code>-loop finishes, they can run on different
+            cores simultaneously. Distribution exposed exactly this: the graph shows independence that the fused body hid.
           </Panel>
         </>
       }
@@ -541,27 +560,48 @@ for (i = 0; i < n; i++)  e[i] = a[i] + c[i];`}</Pre>
     <QuestionCard
       n={3}
       diff="Medium"
-      title="A cycle that cannot be split"
+      title="Mutual references — but is it really a cycle?"
       statement={
         <>
-          <p className="mb-2">Can this loop be distributed? Build the graph and justify.</p>
+          <p className="mb-2">
+            <Code>s₁</Code> reads what <Code>s₂</Code> writes, and <Code>s₂</Code> reads what <Code>s₁</Code> writes —
+            it smells like a cycle. Determine the two dependences precisely (kind, direction, distance), decide whether
+            the loop is distributable, and if so give the loops <em>in the correct order</em>.
+          </p>
           <Pre>{`for (i = 1; i <= n; i++) {
-  s1: a[i] = b[i] + c[i-1];
-  s2: c[i] = a[i] - 1;
+  s1: x[i] = z[i-1] + 1;
+  s2: z[i] = x[i+1] * 2;
 }`}</Pre>
         </>
       }
       solution={
         <>
+          <p className="text-sm mb-1"><strong>Work each reference out — don't pattern-match:</strong></p>
+          <Table
+            head={['Reference', 'Writer / reader', 'Order in original', 'Edge']}
+            rows={[
+              [<Code>z[i-1]</Code>, <>written by <Code>s₂</Code> at <Code>i−1</Code>, read by <Code>s₁</Code> at <Code>i</Code></>, 'write first → flow', <><Code>s₂ →(1) s₁</Code></>],
+              [<Code>x[i+1]</Code>, <>read by <Code>s₂</Code> at <Code>i</Code>, written by <Code>s₁</Code> at <Code>i+1</Code></>, 'read first → anti', <><Code>s₂ →(1) s₁</Code></>],
+            ]}
+          />
           <p className="text-sm mb-1">
-            Dependences: <Code>s₁ → s₂</Code> (via <Code>a[i]</Code>, distance 0) and <Code>s₂ → s₁</Code> (via{' '}
-            <Code>c[i−1]</Code>, distance 1). The two edges form a <strong>cycle</strong>, so <Code>{'{s₁,s₂}'}</Code> is a
-            single SCC.
+            Both edges run <Code>s₂ → s₁</Code> — <Good>no cycle!</Good> The "mutual" references differ in which access
+            comes first, and the anti-dependence points the same way as the flow. SCCs: <Code>{'{s₂}'}</Code>,{' '}
+            <Code>{'{s₁}'}</Code>; the topological order puts <strong><Code>s₂</Code>'s loop first</strong> — the reverse
+            of the textual order:
+          </p>
+          <Pre>{`for (i = 1; i <= n; i++)  z[i] = x[i+1] * 2;   // s2 first!
+for (i = 1; i <= n; i++)  x[i] = z[i-1] + 1;   // s1 second`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Check:</strong> the <Code>s₂</Code>-loop reads <Code>x[2…n+1]</Code> before the <Code>s₁</Code>-loop
+            overwrites <Code>x[1…n]</Code> (anti ✓); the <Code>s₁</Code>-loop reads <Code>z[0…n−1]</Code> after the{' '}
+            <Code>s₂</Code>-loop wrote <Code>z[1…n]</Code> (flow ✓ — <Code>z[0]</Code> was never written, same as the
+            original's first iteration).
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Bad>Not distributable.</Bad> The loop-carried <Code>c[i−1]</Code> creates a back-edge; splitting <Code>s₁</Code>{' '}
-            and <Code>s₂</Code> into separate loops would break the cycle. The loop must stay as one — distribution yields
-            no split here.
+            <Good>Two lessons:</Good> (1) a cycle needs edges in <em>both</em> directions — classify each edge before
+            declaring an SCC; (2) the emitted order comes from the <em>graph</em>, not from the statement order in the
+            body. Emitting <Code>s₁</Code> first here would hand <Code>s₁</Code> stale <Code>z</Code> values.
           </Panel>
         </>
       }
@@ -570,40 +610,53 @@ for (i = 0; i < n; i++)  e[i] = a[i] + c[i];`}</Pre>
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Four statements, three loops"
+      title="Distribute, then judge each loop for vectorization"
       statement={
         <>
           <p className="mb-2">
-            Give the dependence graph with distances, the SCCs, a topological order, and the fully distributed code.
+            Distribute maximally (graph, SCCs, order, code). Then, for <em>each</em> resulting loop, state whether it can
+            be vectorized / parallelized, with the reason.
           </p>
           <Pre>{`for (i = 1; i <= n; i++) {
-  s1: a[i] = a[i] + b[i-1];
-  s2: b[i] = c[i-1] * x;
-  s3: c[i] = 1 / b[i];
-  s4: d[i] = sqrt(c[i]);
+  s1: a[i] = b[i-1] + c[i];
+  s2: b[i] = a[i] * d[i];
+  s3: e[i] = b[i] * 2;
+  s4: f[i] = e[i] + f[i-1];
 }`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1"><strong>Dependences:</strong></p>
-          <Formula>{`s2 →(0) s3   (b[i])        s3 →(1) s2   (c[i-1])
-s2 →(1) s1   (b[i-1])      s3 →(0) s4   (c[i])`}</Formula>
+          <Formula>{`s1 →(0) s2   (a[i])         s2 →(1) s1   (b[i-1])   ← cycle!
+s2 →(0) s3   (b[i])         s3 →(0) s4   (e[i])
+s4 →(1) s4   (f[i-1])       ← self-cycle`}</Formula>
           <p className="text-sm mb-1">
-            <strong>SCCs:</strong> <Code>Z₁={'{s₁}'}</Code>, <Code>Z₂={'{s₂,s₃}'}</Code> (cycle), <Code>Z₃={'{s₄}'}</Code>.{' '}
-            <strong>Topological order:</strong> <Code>Z₂, Z₁, Z₃</Code>.
+            <strong>SCCs:</strong> <Code>Z₁ = {'{s₁,s₂}'}</Code> (two-node cycle), <Code>Z₂ = {'{s₃}'}</Code>,{' '}
+            <Code>Z₃ = {'{s₄}'}</Code> (self-cycle — still its own loop). Edges Z₁→Z₂→Z₃ force the order{' '}
+            <Code>Z₁, Z₂, Z₃</Code>:
           </p>
-          <Pre>{`for (ib = 0; ib < n; ib++) {   // Z2 = {s2, s3}
-  b[ib+1] = c[ib] * x;
-  c[ib+1] = 1 / b[ib+1];
+          <Pre>{`for (i = 1; i <= n; i++) {     // Z1 = {s1, s2}
+  a[i] = b[i-1] + c[i];
+  b[i] = a[i] * d[i];
 }
-for (ib = 0; ib < n; ib++)     // Z1 = {s1}
-  a[ib+1] = a[ib+1] + b[ib];
-for (ib = 0; ib < n; ib++)     // Z3 = {s4}
-  d[ib+1] = sqrt(c[ib+1]);`}</Pre>
+for (i = 1; i <= n; i++)       // Z2 = {s3}
+  e[i] = b[i] * 2;
+for (i = 1; i <= n; i++)       // Z3 = {s4}
+  f[i] = e[i] + f[i-1];`}</Pre>
+          <p className="text-sm mb-1"><strong>Vectorizability verdict per loop:</strong></p>
+          <Table
+            head={['Loop', 'Carried dependence?', 'Verdict']}
+            rows={[
+              ['Z₁', <>yes — the <Code>s₁⇄s₂</Code> cycle via <Code>b[i−1]</Code></>, <Bad>sequential</Bad>],
+              ['Z₂', 'none — reads finished b, writes only e', <Good>vectorizable / parallel</Good>],
+              ['Z₃', <>yes — self-recurrence <Code>f[i−1]</Code></>, <Bad>sequential (scan)</Bad>],
+            ]}
+          />
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Correct:</Good> the cyclic <Code>{'{s₂,s₃}'}</Code> stays fused and runs first (everything depends on
-            it); <Code>s₁</Code> and <Code>s₄</Code> each split into their own loop.
+            <Good>The point of distributing:</Good> the original loop was fully sequential because <em>one</em> body
+            mixed everything. Splitting isolates the truly parallel work (Z₂ — and on many machines that is the memory-fat
+            part) from the two recurrences, which is exactly what the §3.2 <Code>vectorize()</Code> algorithm exploits.
           </Panel>
         </>
       }
@@ -612,50 +665,70 @@ for (ib = 0; ib < n; ib++)     // Z3 = {s4}
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Nested-loop distribution (inner then outer)"
+      title="A nest whose cycle lives in the INNER loop"
       statement={
         <>
           <p className="mb-2">
-            Split this nest into the maximum number of loops. Distribute the inner loop first, then the outer, treating
-            inner loops as atomic.
+            Distribute this nest maximally, inner loop first, outer loop second (inner loops become atomic nodes). Careful:
+            this time the cycle's carrying level is the <em>opposite</em> of the lecture example.
           </p>
-          <Pre>{`for (I = 1; I <= 100; I++)
-  for (J = 1; J <= 100; J++) {
-    s1: A[I][J]   = B[I][J] + C[I][J];
-    s2: C[I+1][J] = C[I][J] + A[I][J];
-    s3: D[I][J]   = C[I][J] - 1;
+          <Pre>{`for (I = 1; I <= 64; I++)
+  for (J = 1; J <= 64; J++) {
+    s1: P[I][J] = Q[I][J-1] + R[I][J];
+    s2: Q[I][J] = P[I][J] * 2;
+    s3: S[I][J] = P[I][J] + 1;
   }`}</Pre>
+          <p className="mb-0">
+            (a) Dependence graph with 2-D distances. (b) Inner-loop distribution — what stays together and why? (c)
+            Outer-loop distribution. (d) Explain why the cycle blocked one level but not the other.
+          </p>
         </>
       }
       solution={
         <>
+          <p className="text-sm mb-1"><strong>(a) Dependences:</strong></p>
+          <Table
+            head={['Dep', 'Via', 'Distance (I,J)', 'Carried by']}
+            rows={[
+              [<Code>s₁ → s₂</Code>, <Code>P[I][J]</Code>, '(0,0)', 'loop-independent'],
+              [<Code>s₂ → s₁</Code>, <><Code>Q[I][J]</Code> → <Code>Q[I][J-1]</Code></>, '(0,1)', <strong>inner (J)</strong>],
+              [<Code>s₁ → s₃</Code>, <Code>P[I][J]</Code>, '(0,0)', 'loop-independent'],
+            ]}
+          />
           <p className="text-sm mb-1">
-            <strong>Dependences:</strong> <Code>s₁ →(0,0) s₂</Code> (via <Code>A[I][J]</Code>),{' '}
-            <Code>s₂ →(1,0) s₁</Code> and <Code>s₂ →(1,0) s₃</Code> (via <Code>C[I+1][J]</Code>). So <Code>{'{s₁,s₂}'}</Code>{' '}
-            is an SCC; <Code>s₃</Code> is separate.
+            <strong>(b) Inner (J) level.</strong> For the J-loop <em>both</em> the <Code>(0,0)</Code> edges and the
+            J-carried <Code>(0,1)</Code> edge count. <Code>s₁ →(0,0) s₂</Code> and <Code>s₂ →(0,1) s₁</Code> close a
+            cycle ⇒ <Code>{'{s₁,s₂}'}</Code> is one SCC at this level; <Code>s₃</Code> splits off (order: after, due to
+            s₁→s₃):
           </p>
-          <p className="text-sm mb-1">
-            <strong>Inner (J) distribution:</strong> the <Code>(1,0)</Code> edges are carried by the outer loop (J-distance
-            0), so ignore them — only <Code>s₁→s₂ (0,0)</Code> remains ⇒ no cycle ⇒ three inner loops:
-          </p>
-          <Pre>{`for (I = 1; I <= 100; I++) {
-  for (h2 = 0; h2 <= 99; h2++)  A[I][h2+1]   = B[I][h2+1] + C[I][h2+1];
-  for (h2 = 0; h2 <= 99; h2++)  C[I+1][h2+1] = C[I][h2+1] + A[I][h2+1];
-  for (h2 = 0; h2 <= 99; h2++)  D[I][h2+1]   = C[I][h2+1] - 1;
+          <Pre>{`for (I = 1; I <= 64; I++) {
+  for (J = 1; J <= 64; J++) {   // {s1,s2} — J-carried cycle
+    P[I][J] = Q[I][J-1] + R[I][J];
+    Q[I][J] = P[I][J] * 2;
+  }
+  for (J = 1; J <= 64; J++)     // {s3}
+    S[I][J] = P[I][J] + 1;
 }`}</Pre>
           <p className="text-sm mb-1">
-            <strong>Outer (I) distribution:</strong> now the <Code>(1,0)</Code> cycle <Code>s₁ ⇄ s₂</Code> is carried by
-            the outer loop ⇒ their loops stay together; <Code>s₃</Code>'s loop splits off:
+            <strong>(c) Outer (I) level.</strong> The two inner loops are now atomic nodes <Code>N₁ = {'{s₁,s₂}'}</Code>,{' '}
+            <Code>N₂ = {'{s₃}'}</Code>. The only edge between them is <Code>s₁ →(0,0) s₃</Code>; the <Code>(0,1)</Code>{' '}
+            cycle is <em>internal</em> to N₁ and invisible at this level. No cycle between nodes ⇒ the outer loop
+            distributes too:
           </p>
-          <Pre>{`for (h1 = 0; h1 <= 99; h1++) {
-  for (h2 = 0; h2 <= 99; h2++)  A[h1+1][h2+1] = B[h1+1][h2+1] + C[h1+1][h2+1];
-  for (h2 = 0; h2 <= 99; h2++)  C[h1+2][h2+1] = C[h1+1][h2+1] + A[h1+1][h2+1];
-}
-for (h1 = 0; h1 <= 99; h1++)
-  for (h2 = 0; h2 <= 99; h2++)  D[h1+1][h2+1] = C[h1+1][h2+1] - 1;`}</Pre>
+          <Pre>{`for (I = 1; I <= 64; I++)
+  for (J = 1; J <= 64; J++) {
+    P[I][J] = Q[I][J-1] + R[I][J];
+    Q[I][J] = P[I][J] * 2;
+  }
+for (I = 1; I <= 64; I++)
+  for (J = 1; J <= 64; J++)
+    S[I][J] = P[I][J] + 1;`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Key idea:</Good> a dependence blocks distribution only at the level that <em>carries</em> it. The
-            <Code> (1,0)</Code> cycle is invisible to the inner loop but binding for the outer one.
+            <strong>(d)</strong> A dependence constrains distribution only at the level that <em>carries</em> it. Here
+            the cycle's distance is <Code>(0,1)</Code>: carried by <strong>J</strong>, so it welds s₁/s₂ together{' '}
+            <em>inside</em> each J-loop but says nothing about splitting the I-loop. The lecture's example was the mirror
+            image — a <Code>(1,0)</Code> cycle let the inner loop split three ways but held the outer loop together.{' '}
+            <Good>Always annotate each edge with its carrying level before distributing anything.</Good>
           </Panel>
         </>
       }

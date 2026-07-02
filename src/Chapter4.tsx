@@ -755,45 +755,57 @@ for (i = s; i < n; i++)
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §4.1, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §4.1, easy → hardest. These are <em>transfer</em> problems — none reuses an example
+      from the content tabs. Q1 is fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
       n={1}
       diff="Worked example"
       defaultOpen
-      title="Build the DDG and reorder for locality"
+      title="Build the DDG — and discover a reordering that is impossible"
       statement={
         <>
           <p className="mb-2">
-            Draw the data dependence graph and give a valid reordering that brings the two <Code>a</Code>-accesses next to
-            each other and the two <Code>b</Code>-accesses next to each other.
+            Draw the data dependence graph of the sequence below, classify every edge (flow / anti / output), list{' '}
+            <em>all</em> legal execution orders, and decide: can the two accesses to <Code>a[k]</Code> in (1) and (3) ever
+            be brought next to each other?
           </p>
-          <Pre>{`(1) a[1] = 0;
-(2) b[1] = 0;
-(3) a[2] = a[1] + 5;
-(4) b[2] = b[1] + 7;`}</Pre>
+          <Pre>{`(1) x    = a[k] + 1;
+(2) a[k] = y * 2;
+(3) z    = a[k] - 3;
+(4) y    = 7;`}</Pre>
         </>
       }
       solution={
         <>
-          <p className="text-sm mb-1"><strong>Dependences.</strong> (3) reads <Code>a[1]</Code> written by (1); (4) reads <Code>b[1]</Code> written by (2):</p>
-          <Formula>{`1 → 3   (flow on a[1])
-2 → 4   (flow on b[1])`}</Formula>
+          <p className="text-sm mb-1"><strong>Step 1 — edges.</strong> Compare every pair on shared variables:</p>
+          <Table
+            head={['Pair', 'Kind', 'Why']}
+            rows={[
+              [<Code>1 → 2</Code>, 'anti', <>(1) reads <Code>a[k]</Code>, (2) overwrites it — the read must happen first</>],
+              [<Code>2 → 3</Code>, 'flow', <>(2) writes <Code>a[k]</Code>, (3) reads the <em>new</em> value</>],
+              [<Code>2 → 4</Code>, 'anti', <>(2) reads <Code>y</Code>, (4) overwrites <Code>y</Code></>],
+            ]}
+          />
           <p className="text-sm mb-1">
-            There is <strong>no</strong> dependence between the a-chain and the b-chain, so they may be separated freely —
-            only <Code>1</Code> before <Code>3</Code> and <Code>2</Code> before <Code>4</Code> must hold.
+            No other pair shares a variable (note (1) and (3) both only <em>read</em> <Code>a[k]</Code> — two reads never
+            make a dependence).
           </p>
-          <p className="text-sm mb-1"><strong>Reorder</strong> to group each array:</p>
-          <Pre>{`a[1] = 0;        // (1)
-a[2] = a[1] + 5; // (3)
-b[1] = 0;        // (2)
-b[2] = b[1] + 7; // (4)`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Step 2 — legal orders.</strong> The constraints are 1&lt;2, 2&lt;3, 2&lt;4. Statement (4) may float
+            anywhere after (2); everything else is fixed:
+          </p>
+          <Formula>{`1,2,3,4     1,2,4,3          — the only two legal orders`}</Formula>
+          <p className="text-sm mb-1">
+            <strong>Step 3 — can (1) and (3) become adjacent?</strong> <Bad>No.</Bad> The chain{' '}
+            <Code>1 →(anti) 2 →(flow) 3</Code> forces (2) to sit <em>between</em> them in every legal order. This is the
+            general lesson: a write to a location <em>pins itself between</em> the reads before and after it.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal:</Good> 1→3 and 2→4 are both preserved. <Good>Better spatial locality:</Good> <Code>a[1], a[2]</Code>{' '}
-            (one cache line) are now used back-to-back, then <Code>b[1], b[2]</Code>. The order <Code>1,3,2,4</Code> works;
-            so would <Code>2,4,1,3</Code>.
+            <Good>Pattern for the rest:</Good> (i) list edges by scanning pairs for a shared variable with at least one
+            write, (ii) turn the edges into ordering constraints, (iii) only then argue what a reordering can and cannot
+            achieve.
           </Panel>
         </>
       }
@@ -802,38 +814,44 @@ b[2] = b[1] + 7; // (4)`}</Pre>
     <QuestionCard
       n={2}
       diff="Easy"
-      title="Apply loop unswitching"
+      title="Unswitch what can be unswitched — and only that"
       statement={
         <>
-          <p className="mb-2">Unswitch the loop-invariant conditional and state the advantage.</p>
+          <p className="mb-2">
+            The loop contains <strong>two</strong> conditionals. Decide for each whether loop unswitching applies, give
+            the transformed code, and count how many condition evaluations remain per full run.
+          </p>
           <Pre>{`for (i = 0; i < n; i++) {
-  s[i] = x[i] * 2;
-  if (flag)
-    y[i] = x[i] + 1;
-  else
-    y[i] = x[i] - 1;
+  if (mode == FAST)  u[i] = v[i] * scale;
+  else               u[i] = slow_fn(v[i]);
+  if (u[i] > limit)  clip[i] = 1;
+  else               clip[i] = 0;
 }`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            <Code>flag</Code> never changes inside the loop, so hoist it and duplicate the loop:
+            <strong>Which test is invariant?</strong> <Code>mode == FAST</Code> reads only <Code>mode</Code>, which the
+            loop never writes → loop-invariant, unswitchable. <Code>u[i] &gt; limit</Code> reads <Code>u[i]</Code>, which
+            is written <em>in the same iteration</em> → varies per iteration, <Bad>not unswitchable</Bad>.
           </p>
-          <Pre>{`if (flag)
+          <Pre>{`if (mode == FAST)
   for (i = 0; i < n; i++) {
-    s[i] = x[i] * 2;
-    y[i] = x[i] + 1;
+    u[i] = v[i] * scale;
+    if (u[i] > limit)  clip[i] = 1;
+    else               clip[i] = 0;
   }
 else
   for (i = 0; i < n; i++) {
-    s[i] = x[i] * 2;
-    y[i] = x[i] - 1;
+    u[i] = slow_fn(v[i]);
+    if (u[i] > limit)  clip[i] = 1;
+    else               clip[i] = 0;
   }`}</Pre>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Advantage:</Good> <Code>flag</Code> is tested <strong>once</strong> instead of <Code>n</Code> times, and
-            each loop body is branch-free (better for pipelining / vectorization). <Tag tone="warn">cost</Tag> the loop
-            body is duplicated, and in a nested setting the nesting may become non-perfect.
+            <Good>Count:</Good> before <Code>2n</Code> tests; after <Code>1 + n</Code> (one <Code>mode</Code> test, and{' '}
+            <Code>u[i] &gt; limit</Code> unavoidably stays in the loop). The data-dependent branch is the part
+            unswitching can never remove.
           </Panel>
         </>
       }
@@ -842,33 +860,42 @@ else
     <QuestionCard
       n={3}
       diff="Medium"
-      title="Peel to remove an in-loop test"
+      title="Peel the last iteration (not the first)"
       statement={
         <>
           <p className="mb-2">
-            Peel the first iteration so the <Code>i == 0</Code> test disappears from the hot loop.
+            Every iteration but the final one pushes a value forward. Remove the <Code>if</Code> from the hot loop by
+            peeling — but note which end of the iteration space you must peel, and keep the guard correct for{' '}
+            <Code>n = 0</Code>.
           </p>
           <Pre>{`for (i = 0; i < n; i++) {
-  if (i == 0) b[i] = 0;
-  else        b[i] = b[i-1] + a[i];
+  s[i] = t[i] * t[i];
+  if (i < n-1)  t[i+1] = t[i+1] + s[i];
 }`}</Pre>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            The <Code>if (i == 0)</Code> is true only on the very first iteration. Peel <Code>i = 0</Code> out and let the
-            remaining loop run the <Code>else</Code> branch unconditionally:
+            The test <Code>i &lt; n−1</Code> fails only on the <strong>last</strong> iteration, so peeling the first
+            iteration (the §4.1 template) removes nothing — we must peel the <strong>last</strong>:
           </p>
           <Pre>{`if (n > 0) {
-  b[0] = 0;                    // peeled i = 0
-  for (i = 1; i < n; i++)
-    b[i] = b[i-1] + a[i];      // no test left
+  for (i = 0; i < n-1; i++) {   // all "true" iterations
+    s[i] = t[i] * t[i];
+    t[i+1] = t[i+1] + s[i];     // test gone
+  }
+  s[n-1] = t[n-1] * t[n-1];     // peeled i = n-1 (no push)
 }`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>Legality.</strong> The loop carries a flow dependence: iteration <Code>i</Code> writes{' '}
+            <Code>t[i+1]</Code>, iteration <Code>i+1</Code> reads it. Peeling only cuts the iteration space at one end —
+            every iteration still runs exactly once, in the original order — so the dependence chain is intact.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Result:</Good> the branch is evaluated zero times inside the loop. This is the same shape as the
-            §4.1 peeling template, with the <Code>if (n &gt; 0)</Code> guard protecting the peeled iteration. The
-            dependence <Code>b[i] → b[i−1]</Code> is untouched, so the rewrite is legal.
+            <Good>Check the corner:</Good> for <Code>n = 1</Code> the loop runs zero times and only{' '}
+            <Code>s[0] = t[0]²</Code> executes — exactly what the original did (its single iteration failed the test).
+            The <Code>if (n &gt; 0)</Code> guard covers <Code>n = 0</Code>.
           </Panel>
         </>
       }
@@ -877,38 +904,46 @@ else
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Which reorders are legal? (all three dependence kinds)"
+      title="How far out can this conditional be hoisted?"
       statement={
         <>
           <p className="mb-2">
-            This sequence swaps <Code>a[i]</Code> and <Code>b[i]</Code>. List its dependences, then decide whether the
-            order <Code>(2), (1), (3)</Code> is legal.
+            The test <Code>r[i] &gt; 0</Code> is <em>not</em> invariant for the outer loop but <em>is</em> invariant for
+            the inner one. Unswitch as far out as legality allows, give the code, count the condition evaluations before
+            and after, and name the structural drawback of the result.
           </p>
-          <Pre>{`(1) t    = a[i];
-(2) a[i] = b[i];
-(3) b[i] = t;`}</Pre>
+          <Pre>{`for (i = 0; i < n; i++)
+  for (j = 0; j < m; j++) {
+    if (r[i] > 0)  A[i][j] = B[i][j] * r[i];
+    else           A[i][j] = 0;
+  }`}</Pre>
         </>
       }
       solution={
         <>
-          <p className="text-sm mb-1"><strong>Dependences:</strong></p>
+          <p className="text-sm mb-1">
+            <strong>Invariance is relative to a loop.</strong> <Code>r[i]</Code> changes with <Code>i</Code>, so the test
+            cannot leave the <Code>i</Code>-loop; it does not change with <Code>j</Code>, so it can leave the{' '}
+            <Code>j</Code>-loop:
+          </p>
+          <Pre>{`for (i = 0; i < n; i++) {
+  if (r[i] > 0)
+    for (j = 0; j < m; j++)  A[i][j] = B[i][j] * r[i];
+  else
+    for (j = 0; j < m; j++)  A[i][j] = 0;
+}`}</Pre>
           <Table
-            head={['Pair', 'Kind', 'Why']}
+            head={['', 'Condition evaluations']}
             rows={[
-              [<Code>1 → 2</Code>, 'anti', <>(1) reads <Code>a[i]</Code>, (2) writes <Code>a[i]</Code> — the read must stay first</>],
-              [<Code>1 → 3</Code>, 'flow', <>(1) writes <Code>t</Code>, (3) reads <Code>t</Code></>],
-              [<Code>2 → 3</Code>, 'anti', <>(2) reads <Code>b[i]</Code>, (3) writes <Code>b[i]</Code></>],
+              ['before', <Code>n · m</Code>],
+              ['after', <><Code>n</Code> (once per outer iteration)</>],
             ]}
           />
-          <p className="text-sm mb-1">
-            The proposed order <Code>(2), (1), (3)</Code> puts (2) before (1), violating the anti-dependence{' '}
-            <Code>1 → 2</Code>:
-          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Bad>Illegal.</Bad> With (2) first, <Code>a[i]</Code> is overwritten by <Code>b[i]</Code> <em>before</em> (1)
-            captures the old <Code>a[i]</Code> into <Code>t</Code> — so (3) stores the wrong value and the swap breaks.
-            Because all three statements are pairwise dependent, the <strong>only</strong> legal order is the original
-            <Code> (1), (2), (3)</Code>.
+            <Tag tone="warn">Drawback:</Tag> the nest is no longer <strong>perfectly nested</strong> — between the{' '}
+            <Code>i</Code>-loop and the <Code>j</Code>-loops now sits an <Code>if</Code>. Transformations that need a
+            perfect nest (interchange, tiling, §4.4/§4.8) no longer apply directly. Bonus: the else-loop became a plain
+            fill with 0 — a candidate for <Code>memset</Code>.
           </Panel>
         </>
       }
@@ -917,47 +952,60 @@ else
     <QuestionCard
       n={5}
       diff="Hardest"
-      title="Full reordering with a hoisted condition"
+      title="Combine peeling, unswitching and a branch-free hot loop"
       statement={
         <>
           <p className="mb-2">
-            Reorder so that <Code>a[1], a[2]</Code> are adjacent and <Code>b[1], b[2]</Code> are adjacent, then write the
-            resulting equivalent code. Justify that it is legal.
+            Transform this loop so that its hot inner part contains <strong>no branch at all</strong>, using loop peeling
+            and loop unswitching together.
           </p>
-          <Pre>{`(1) a[1] = 0;
-(2) b[1] = 0;
-(3) if (c > 0) {
-(4)   a[2] = 1;
-(5)   b[2] = 9; }
-(6) for (i = 3; i <= 9; i++) {
-(7)   a[i] = a[i-2] + a[i-1] - 2;
-(8)   b[i] = b[i-2] + 2*b[i-1]; }`}</Pre>
+          <Pre>{`for (i = 0; i < n; i++) {
+  if (i == 0)  m[0] = seed;
+  else         m[i] = m[i-1] * q;
+  if (trace)   log[i] = m[i];
+}`}</Pre>
+          <p className="mb-0">
+            (a) Give the final code. (b) Count condition evaluations before and after (in terms of <Code>n</Code>).
+            (c) Does it matter whether you peel first or unswitch first? (d) Why can the flow dependence on{' '}
+            <Code>m</Code> not be broken by either transformation?
+          </p>
         </>
       }
       solution={
         <>
-          <p className="text-sm mb-1"><strong>Dependences to keep:</strong></p>
-          <Formula>{`1 → 7,  4 → 7      2 → 8,  5 → 8
-3 → 4,  3 → 5      6 → 7,  6 → 8`}</Formula>
           <p className="text-sm mb-1">
-            <strong>Order</strong> <Code>2, 3, 5, 1, 4, 6, 7, 8</Code> keeps every source before its target. Statements (4)
-            and (5) sit in one <Code>if</Code>; to place (5) before (1) and (4) after it, evaluate the condition once into{' '}
-            <Code>test</Code> and guard each write:
+            <strong>(a)</strong> Peel <Code>i = 0</Code> (kills the <Code>i == 0</Code> test), then unswitch{' '}
+            <Code>trace</Code> (loop-invariant) out of the remaining loop:
           </p>
-          <Pre>{`b[1] = 0;            // (2)
-test = c > 0;        // (3)
-if (test) b[2] = 9;  // (5)
-a[1] = 0;            // (1)
-if (test) a[2] = 1;  // (4)
-for (i = 3; i <= 9; i++) {
-  a[i] = a[i-2] + a[i-1] - 2;
-  b[i] = b[i-2] + 2*b[i-1];
+          <Pre>{`if (n > 0) {
+  m[0] = seed;                     // peeled i = 0
+  if (trace)  log[0] = m[0];
+  if (trace)
+    for (i = 1; i < n; i++) {      // hot loop A — branch-free
+      m[i] = m[i-1] * q;
+      log[i] = m[i];
+    }
+  else
+    for (i = 1; i < n; i++)        // hot loop B — branch-free
+      m[i] = m[i-1] * q;
 }`}</Pre>
+          <p className="text-sm mb-1">
+            <strong>(b)</strong> Before: every iteration tests <Code>i == 0</Code> and <Code>trace</Code> →{' '}
+            <Code>2n</Code> evaluations. After: <Code>n &gt; 0</Code> once and <Code>trace</Code> twice (peeled iteration
+            + loop choice) → <strong>3 total</strong>, independent of <Code>n</Code>.
+          </p>
+          <p className="text-sm mb-1">
+            <strong>(c)</strong> The two transformations commute — both end states are equivalent. But peeling first is
+            tidier: unswitching first would duplicate the <Code>i == 0</Code> special case into <em>both</em> loop
+            copies, and you would then have to peel twice.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Good>Legal &amp; faster:</Good> all eight dependence edges are preserved, and the hoisted <Code>test</Code>{' '}
-            keeps the control dependences (3)→(4), (3)→(5) intact while letting <Code>a[1], a[2]</Code> and{' '}
-            <Code>b[1], b[2]</Code> be written back-to-back — the <strong>better spatial locality</strong> the
-            transformation was after.
+            <strong>(d)</strong> <Code>m[i] = m[i−1] · q</Code> is a loop-carried <em>flow</em> dependence with distance
+            1: iteration <Code>i</Code> needs the value produced by iteration <Code>i−1</Code>. Peeling and unswitching
+            only restructure <em>control</em> — they never change which iteration computes what, nor the order of the
+            iterations — so the chain (and the sequential nature of the recurrence) survives untouched.{' '}
+            <Good>That is exactly why they are always legal</Good>, in contrast to the order-changing loop
+            transformations of §4.2–§4.8.
           </Panel>
         </>
       }

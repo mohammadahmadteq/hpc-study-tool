@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"Pre>{\\\\`\" Chapter4_4.tsx)",
+      "Bash(grep -n \"Pre>{\\\\`\" Chapter4_5.tsx)",
+      "Bash(grep -n \"Pre>{\\\\`\" Chapter4_6.tsx)",
+      "Bash(grep -n \"const Questions\\\\|Pre>{\\\\`\" Chapter4_7.tsx)",
+      "Bash(python3 -c ' *)",
+      "Bash(grep -n \"Pre>{\\\\`\\\\|Formula>{\\\\`\" Chapter4_8.tsx)",
+      "Bash(grep -n \"const.*Section: React.FC\\\\|Pre>{\\\\`\\\\|Formula>{\\\\`\" Chapter4_9.tsx)"
+    ]
+  }
+}

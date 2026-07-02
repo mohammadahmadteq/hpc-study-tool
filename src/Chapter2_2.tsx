@@ -301,6 +301,10 @@ type Maps = Record<string, string[]>
 interface RdSnap {
   active: string | null
   iter: string
+  /** value of the algorithm's change flag after this step */
+  change: boolean
+  /** pseudocode lines to highlight (1-based, see rdAlgoLines) */
+  hl: number[]
   ins: Maps
   outs: Maps
   note: React.ReactNode
@@ -308,122 +312,264 @@ interface RdSnap {
 
 const D = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7']
 
+const rdAlgoLines = [
+  'for each block B: out[B] := gen[B]; in[B] := ∅',
+  'change := true',
+  'while change:',
+  '    change := false',
+  '    for B in B1, B2, B3, B4:',
+  '        in[B]  := ∪ out[P] over preds P of B',
+  '        out[B] := gen[B] ∪ (in[B] − kill[B])',
+  '        if out[B] changed: change := true',
+  'done — in/out are the solution',
+]
+
 const rdSnaps: RdSnap[] = [
   {
     active: null,
     iter: 'Init',
+    change: true,
+    hl: [1, 2],
     ins: { B1: [], B2: [], B3: [], B4: [] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d4', 'd5'], B3: ['d6'], B4: ['d7'] },
     note: (
       <>
-        Initialise every <Code>out[B] := gen[B]</Code> and every <Code>in[B] := ∅</Code>. Now iterate{' '}
-        <Code>B1, B2, B3, B4</Code> repeatedly until nothing changes.
+        <strong>Initialisation.</strong> Every <Code>out[B] := gen[B]</Code> and every <Code>in[B] := ∅</Code> — we start
+        from the <em>smallest</em> sets that could possibly be right, because the iteration only ever <em>adds</em>{' '}
+        definitions (never removes). <Code>change := true</Code> just gets us into the while-loop. We will now sweep the
+        blocks in the fixed order <Code>B1, B2, B3, B4</Code>, over and over, until one full sweep changes no{' '}
+        <Code>out</Code> set.
       </>
     ),
   },
   {
     active: 'B1',
-    iter: 'Iteration 1',
+    iter: 'Pass 1',
+    change: false,
+    hl: [4, 6, 7],
     ins: { B1: [], B2: [], B3: [], B4: [] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d4', 'd5'], B3: ['d6'], B4: ['d7'] },
     note: (
       <>
-        <Code>B1</Code> has <strong>no predecessors</strong> (only the entry), so <Code>in[B1] = ∅</Code> stays empty and{' '}
-        <Code>out[B1] = gen[B1] ∪ (∅ − kill) = {'{d1,d2,d3}'}</Code>. Nothing changes here.
+        Pass 1 starts by resetting <Code>change := false</Code>. <Code>B1</Code> has <strong>no predecessors</strong>{' '}
+        (only the entry point), so:
+        <Formula>{`in[B1]  = ∅   (empty union)
+out[B1] = gen[B1] ∪ (∅ − kill[B1]) = {d1,d2,d3}`}</Formula>
+        <Code>out[B1]</Code> already had this value from the initialisation → <strong>no change</strong>, the flag stays{' '}
+        <Code>false</Code>.
       </>
     ),
   },
   {
     active: 'B2',
-    iter: 'Iteration 1',
+    iter: 'Pass 1',
+    change: true,
+    hl: [6, 7, 8],
     ins: { B1: [], B2: ['d1', 'd2', 'd3', 'd6', 'd7'], B3: [], B4: [] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d6'], B4: ['d7'] },
     note: (
       <>
-        Predecessors of <Code>B2</Code> are <Code>B1, B3, B4</Code> (two back edges!).
+        Predecessors of <Code>B2</Code> are <Code>B1, B3, B4</Code> — the two <strong>back edges</strong> count too! The
+        current (initial) values <Code>out[B3] = {'{d6}'}</Code> and <Code>out[B4] = {'{d7}'}</Code> flow in even though
+        those blocks haven't been visited yet this pass:
         <Formula>{`in[B2]  = out[B1] ∪ out[B3] ∪ out[B4]
         = {d1,d2,d3} ∪ {d6} ∪ {d7} = {d1,d2,d3,d6,d7}
 out[B2] = gen[B2] ∪ (in[B2] − kill[B2])
         = {d4,d5} ∪ ({d1,d2,d3,d6,d7} − {d1,d2,d7})
         = {d3,d4,d5,d6}`}</Formula>
+        <Code>out[B2]</Code> grew from <Code>{'{d4,d5}'}</Code> → <Code>change := true</Code>.
       </>
     ),
   },
   {
     active: 'B3',
-    iter: 'Iteration 1',
+    iter: 'Pass 1',
+    change: true,
+    hl: [6, 7, 8],
     ins: { B1: [], B2: ['d1', 'd2', 'd3', 'd6', 'd7'], B3: ['d3', 'd4', 'd5', 'd6'], B4: [] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d7'] },
     note: (
       <>
-        <Code>B3</Code>'s only predecessor is <Code>B2</Code>.
+        <Code>B3</Code>'s only predecessor is <Code>B2</Code> — and we use <Code>B2</Code>'s <em>fresh</em> value from a
+        moment ago (that's what makes this visit order converge fast):
         <Formula>{`in[B3]  = out[B2] = {d3,d4,d5,d6}
 out[B3] = {d6} ∪ ({d3,d4,d5,d6} − {d3}) = {d4,d5,d6}`}</Formula>
-        Note <Code>d3</Code> is killed by <Code>d6</Code> (both define <Code>a</Code>).
+        <Code>d3</Code> arrives in <Code>in[B3]</Code> but is <strong>killed</strong> by <Code>d6</Code> (both define{' '}
+        <Code>a</Code>). <Code>out[B3]</Code> grew → the flag is (still) <Code>true</Code>.
       </>
     ),
   },
   {
     active: 'B4',
-    iter: 'Iteration 1',
+    iter: 'Pass 1',
+    change: true,
+    hl: [6, 7, 8],
     ins: { B1: [], B2: ['d1', 'd2', 'd3', 'd6', 'd7'], B3: ['d3', 'd4', 'd5', 'd6'], B4: ['d3', 'd4', 'd5', 'd6'] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d3', 'd5', 'd6', 'd7'] },
     note: (
       <>
-        <Code>B4</Code>'s only predecessor is <Code>B2</Code>.
+        <Code>B4</Code>'s only predecessor is <Code>B2</Code>:
         <Formula>{`in[B4]  = out[B2] = {d3,d4,d5,d6}
 out[B4] = {d7} ∪ ({d3,d4,d5,d6} − {d1,d4}) = {d3,d5,d6,d7}`}</Formula>
-        End of iteration 1 — several out sets changed, so we go round again.
+        <Code>d4</Code> is killed (<Code>d7</Code> also defines <Code>i</Code>). <strong>End of pass 1</strong>: three out
+        sets changed, so <Code>change = true</Code> → the while-loop runs a second pass.
+      </>
+    ),
+  },
+  {
+    active: 'B1',
+    iter: 'Pass 2',
+    change: false,
+    hl: [4, 6, 7],
+    ins: { B1: [], B2: ['d1', 'd2', 'd3', 'd6', 'd7'], B3: ['d3', 'd4', 'd5', 'd6'], B4: ['d3', 'd4', 'd5', 'd6'] },
+    outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d3', 'd5', 'd6', 'd7'] },
+    note: (
+      <>
+        Pass 2: reset <Code>change := false</Code> and sweep again. <Code>B1</Code> still has no predecessors —{' '}
+        <Code>in[B1] = ∅</Code>, <Code>out[B1] = {'{d1,d2,d3}'}</Code>, nothing to do. (Blocks whose inputs didn't change
+        can never produce a new output: <Code>out[B]</Code> is a <em>function</em> of <Code>in[B]</Code>.)
       </>
     ),
   },
   {
     active: 'B2',
-    iter: 'Iteration 2',
+    iter: 'Pass 2',
+    change: false,
+    hl: [6, 7, 8],
     ins: { B1: [], B2: D, B3: ['d3', 'd4', 'd5', 'd6'], B4: ['d3', 'd4', 'd5', 'd6'] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d3', 'd5', 'd6', 'd7'] },
     note: (
       <>
-        Now <Code>out[B3]</Code> and <Code>out[B4]</Code> are bigger, so <Code>in[B2]</Code> grows to the full set{' '}
-        <Code>D = {'{d1…d7}'}</Code>:
+        The interesting step. <Code>out[B3]</Code> and <Code>out[B4]</Code> grew during pass 1, so <Code>in[B2]</Code> now
+        absorbs them and becomes the <strong>full universe</strong> <Code>D = {'{d1…d7}'}</Code>:
         <Formula>{`in[B2]  = {d1,d2,d3} ∪ {d4,d5,d6} ∪ {d3,d5,d6,d7} = D
 out[B2] = {d4,d5} ∪ (D − {d1,d2,d7}) = {d3,d4,d5,d6}`}</Formula>
-        <Code>out[B2]</Code> is <strong>unchanged</strong> — and B3, B4 then recompute to the same sets too.
+        <Code>in[B2]</Code> changed, but <Code>out[B2]</Code> recomputes to the <strong>same</strong> value — the kill set
+        absorbs the newcomers. The flag watches <em>out</em> sets only (each <Code>in</Code> is recomputed from the outs
+        anyway), so <Code>change</Code> stays <Code>false</Code>.
+      </>
+    ),
+  },
+  {
+    active: 'B3',
+    iter: 'Pass 2',
+    change: false,
+    hl: [6, 7, 8],
+    ins: { B1: [], B2: D, B3: ['d3', 'd4', 'd5', 'd6'], B4: ['d3', 'd4', 'd5', 'd6'] },
+    outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d3', 'd5', 'd6', 'd7'] },
+    note: (
+      <>
+        <Code>in[B3] = out[B2] = {'{d3,d4,d5,d6}'}</Code> — exactly what it was in pass 1, because <Code>out[B2]</Code>{' '}
+        didn't change. So <Code>out[B3]</Code> recomputes to <Code>{'{d4,d5,d6}'}</Code>, also unchanged.{' '}
+        <Code>change</Code> stays <Code>false</Code>.
+      </>
+    ),
+  },
+  {
+    active: 'B4',
+    iter: 'Pass 2',
+    change: false,
+    hl: [6, 7, 8],
+    ins: { B1: [], B2: D, B3: ['d3', 'd4', 'd5', 'd6'], B4: ['d3', 'd4', 'd5', 'd6'] },
+    outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d3', 'd5', 'd6', 'd7'] },
+    note: (
+      <>
+        Same story for <Code>B4</Code>: <Code>in[B4] = out[B2]</Code> is unchanged, so <Code>out[B4]</Code> is unchanged.{' '}
+        <strong>End of pass 2</strong> with <Code>change = false</Code> — a complete sweep in which no out set moved.
       </>
     ),
   },
   {
     active: null,
     iter: 'Done',
+    change: false,
+    hl: [3, 9],
     ins: { B1: [], B2: D, B3: ['d3', 'd4', 'd5', 'd6'], B4: ['d3', 'd4', 'd5', 'd6'] },
     outs: { B1: ['d1', 'd2', 'd3'], B2: ['d3', 'd4', 'd5', 'd6'], B3: ['d4', 'd5', 'd6'], B4: ['d3', 'd5', 'd6', 'd7'] },
     note: (
       <>
-        Iteration 2 changed <strong>no</strong> out set → <Good>fixpoint reached</Good>. The <Code>in</Code>/<Code>out</Code>{' '}
-        columns are the final reaching-definitions solution. Each <Code>out[B]</Code> only ever grew (monotone) and the
-        universe <Code>D</Code> is finite, which is why the iteration must terminate.
+        The while-condition fails → <Good>fixpoint reached</Good>; the table is the final reaching-definitions solution.{' '}
+        <strong>Why it terminates:</strong> every <Code>out[B]</Code> only ever grows (the equations are monotone) and is
+        bounded by the finite universe <Code>D</Code>, so at most <Code>|D| · #blocks</Code> growth steps can happen.{' '}
+        <strong>Why it's right:</strong> when nothing changes, every equation holds simultaneously — and starting from ∅
+        makes this the <em>smallest</em> such solution (no spurious definitions).
       </>
     ),
   },
 ]
 
+/** set with elements that are new vs. the previous snapshot highlighted */
+const SetDiff: React.FC<{ xs: string[]; prev?: string[] }> = ({ xs, prev }) => {
+  if (!xs.length) return <span className="font-mono">∅</span>
+  return (
+    <span className="font-mono">
+      {'{'}
+      {xs.map((x, k) => (
+        <React.Fragment key={x}>
+          {k > 0 && ', '}
+          <span className={cn(prev && !prev.includes(x) && 'text-emerald-600 dark:text-emerald-400 font-bold')}>
+            {sub(x)}
+          </span>
+        </React.Fragment>
+      ))}
+      {'}'}
+    </span>
+  )
+}
+
 const ReachingIteration: React.FC = () => {
   const [i, setI] = useState(0)
   const snap = rdSnaps[i]
+  const prev = i > 0 ? rdSnaps[i - 1] : undefined
   const go = (d: number) => setI((p) => Math.max(0, Math.min(rdSnaps.length - 1, p + d)))
   const fillOf = (id: string): Fill => (id === snap.active ? 'active' : 'none')
   const activeEdges =
     snap.active && snap.active !== null ? rdEdges.filter((e) => e.to === snap.active).map(edgeKey) : []
+  const outChanged = (b: string) => prev !== undefined && b === snap.active && prev.outs[b].length !== snap.outs[b].length
 
   return (
     <div>
+      <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">{snap.iter}</span>
+        {snap.active && (
+          <span className="px-2 py-0.5 rounded-full bg-muted font-mono">
+            updating {snap.active}
+          </span>
+        )}
+        <span
+          className={cn(
+            'px-2 py-0.5 rounded-full font-mono font-semibold',
+            snap.change
+              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+              : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+          )}
+        >
+          change = {String(snap.change)}
+        </span>
+        <span className="text-muted-foreground">
+          new elements this step are shown in <span className="text-emerald-600 dark:text-emerald-400 font-bold">green</span>
+        </span>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-        <FlowGraph nodes={rdNodes} edges={rdEdges} width={420} height={360} fillOf={fillOf} activeEdges={activeEdges} />
         <div>
-          <div className="text-xs font-semibold text-muted-foreground mb-1">
-            {snap.iter}
-            {snap.active ? ` · updating ${snap.active}` : ''}
+          <FlowGraph nodes={rdNodes} edges={rdEdges} width={420} height={360} fillOf={fillOf} activeEdges={activeEdges} />
+          <div className="bg-muted border rounded-lg p-2.5 text-[11.5px] font-mono leading-[1.6] mt-2 overflow-x-auto">
+            {rdAlgoLines.map((l, k) => (
+              <div
+                key={k}
+                className={cn(
+                  'whitespace-pre rounded px-1 -mx-1',
+                  snap.hl.includes(k + 1)
+                    ? 'bg-primary/15 text-foreground font-semibold'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {l}
+              </div>
+            ))}
           </div>
+        </div>
+        <div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px] border-collapse">
               <thead>
@@ -436,21 +582,28 @@ const ReachingIteration: React.FC = () => {
               <tbody>
                 {['B1', 'B2', 'B3', 'B4'].map((b) => (
                   <tr key={b} className={cn('border-b last:border-b-0', b === snap.active && 'bg-primary/10')}>
-                    <td className="px-2 py-1 font-mono font-semibold">{b}</td>
-                    <td className="px-2 py-1">
-                      <SetT xs={snap.ins[b]} />
+                    <td className="px-2 py-1 font-mono font-semibold">
+                      {b}
+                      {outChanged(b) && (
+                        <span className="ml-1.5 text-[10px] font-sans font-semibold text-amber-600 dark:text-amber-400">
+                          out grew!
+                        </span>
+                      )}
                     </td>
                     <td className="px-2 py-1">
-                      <SetT xs={snap.outs[b]} />
+                      <SetDiff xs={snap.ins[b]} prev={prev?.ins[b]} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <SetDiff xs={snap.outs[b]} prev={prev?.outs[b]} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <Panel className="text-sm mt-2">{snap.note}</Panel>
         </div>
       </div>
-      <Panel className="text-sm mt-1">{snap.note}</Panel>
       <div className="flex items-center gap-2 mt-3">
         <Button variant="outline" size="sm" onClick={() => go(-1)} disabled={i === 0}>
           ← back
@@ -928,9 +1081,46 @@ while change:
 
     <Card>
       <CardHeader className="pb-2">
+        <CardTitle className="text-base">How to run it by hand (exam recipe)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Step n={1}>
+          <strong>Local sets first.</strong> For every block compute <Code>gen[B]</Code> (definitions in B that survive
+          to its end) and <Code>kill[B]</Code> (all <em>other</em> definitions of the variables B re-defines). These
+          never change again.
+        </Step>
+        <Step n={2}>
+          <strong>Initialise.</strong> Draw a table with one row per block and columns <Code>in</Code> / <Code>out</Code>.
+          Set <Code>out[B] := gen[B]</Code>, <Code>in[B] := ∅</Code>.
+        </Step>
+        <Step n={3}>
+          <strong>Sweep.</strong> Visit the blocks in a fixed order. For each block first form{' '}
+          <Code>in[B] = ∪ out[P]</Code> over <em>all</em> predecessors (back edges included — use whatever value their
+          out set has <em>right now</em>), then <Code>out[B] = gen[B] ∪ (in[B] − kill[B])</Code>. Mark whether{' '}
+          <Code>out[B]</Code> changed.
+        </Step>
+        <Step n={4}>
+          <strong>Repeat until stable.</strong> If any out set changed during the sweep, do another full sweep. Stop
+          after the first sweep in which <em>no</em> out set changes — the table is the solution.
+        </Step>
+        <Panel className="text-xs text-muted-foreground leading-relaxed">
+          Practical tips: only blocks whose predecessors' out sets changed can change themselves — everything else can be
+          copied down. Sets only ever <em>grow</em>, so if an element ever appears it never disappears; if one of your
+          sets shrinks between passes, you made an arithmetic slip.
+        </Panel>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader className="pb-2">
         <CardTitle className="text-base">Interactive — step through the whole iteration</CardTitle>
       </CardHeader>
       <CardContent>
+        <p className="text-sm mb-2">
+          The lecture's four-block loop, executed by the algorithm above. The left panel shows which pseudocode lines are
+          running; the table shows every in/out set with this step's additions in green; the <Code>change</Code> badge
+          tracks the flag that decides whether another pass is needed.
+        </p>
         <ReachingIteration />
       </CardContent>
     </Card>
