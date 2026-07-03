@@ -10,7 +10,12 @@
       "Bash(grep -n \"const.*Section: React.FC\\\\|Pre>{\\\\`\\\\|Formula>{\\\\`\" Chapter4_9.tsx)",
       "Bash(grep -n \"Pre>{\\\\`\\\\|const Questions\\\\|^const tabs\\\\|schedule\\(static\\)\\\\|MA\\\\[\\\\|MB\\\\[\\\\|MC\\\\[\" Chapter5.tsx)",
       "Bash(npx --yes playwright install chromium)",
-      "Bash(node /tmp/claude-1000/-home-amby-Documents-Summer-2026-Bayreuth-HPC-hpc-study-tool/723c1920-ce78-443f-a7a0-43c999961578/scratchpad/verify.mjs)"
+      "Bash(node /tmp/claude-1000/-home-amby-Documents-Summer-2026-Bayreuth-HPC-hpc-study-tool/723c1920-ce78-443f-a7a0-43c999961578/scratchpad/verify.mjs)",
+      "Bash(find . -maxdepth 3 -iname \"*.yml\" -path \"*workflows*\")",
+      "Bash(cat .github/workflows/*.yml)",
+      "Bash(bun -v)",
+      "Bash(gh run *)",
+      "Bash(git fetch *)"
     ]
   }
 }

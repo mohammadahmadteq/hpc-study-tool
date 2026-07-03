@@ -5,17 +5,21 @@ on:
     branches: [master]
   workflow_dispatch: # allow manual runs from the Actions tab
 
-# Allow the workflow to push the built site to the gh-pages branch.
+# Needed for the official Pages deployment API (no branch push involved).
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
-# Avoid overlapping deploys; let the latest push win.
+# Only one Pages deployment may be in flight at a time; queue rather than
+# race, since overlapping deployments are what makes GitHub's Pages backend
+# reject them with "Deployment failed, try again later."
 concurrency:
-  group: gh-pages-deploy
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,9 +44,21 @@ jobs:
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
