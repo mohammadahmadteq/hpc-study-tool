@@ -222,6 +222,22 @@ const chapters: Chapter[] = [
       },
     ],
   },
+  {
+    number: 6,
+    title: 'Scheduling Methods',
+    description:
+      'Mapping computations onto compute resources: static vs. dynamic scheduling, and instruction scheduling in depth — the machine model, list scheduling, trace scheduling, and loop scheduling via software pipelining.',
+    available: true,
+    sections: [
+      {
+        id: '6.1',
+        label: '§6.1',
+        title: 'Instruction Scheduling',
+        description:
+          'Superscalar (dynamic) vs. VLIW (static) scheduling and the formal machine model; List Scheduling with the highest-level-first heuristic; Trace Scheduling with its off-trace/join-edge compensation-code rules and code explosion; and loop scheduling via software pipelining — kernel, prologue, epilogue, and register renaming across pipeline stages.',
+      },
+    ],
+  },
 ]
 
 interface ChapterSelectProps {

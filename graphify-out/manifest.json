@@ -1,125 +1,245 @@
 {
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/eslint.config.js": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/.claude/settings.json": {
+    "mtime": 1783080629.4538648,
+    "ast_hash": "efcb5768cc952dd52242dd5b282f0fbf",
+    "semantic_hash": "efcb5768cc952dd52242dd5b282f0fbf"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/.claude/settings.local.json": {
+    "mtime": 1782853213.2330844,
+    "ast_hash": "c01c71e185e5c8deb25d0185ca7a2272",
+    "semantic_hash": "c01c71e185e5c8deb25d0185ca7a2272"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/eslint.config.js": {
     "mtime": 1782579391.0887032,
     "ast_hash": "0355276bc79439afe3c53e3a2470ca1e",
     "semantic_hash": "0355276bc79439afe3c53e3a2470ca1e"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/package.json": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/package.json": {
     "mtime": 1782580063.965762,
     "ast_hash": "680d49a34609b4a4917f6007502dadc9",
     "semantic_hash": "680d49a34609b4a4917f6007502dadc9"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/App.tsx": {
-    "mtime": 1782841896.047862,
-    "ast_hash": "22b22037e968511234837dcce9c5da4c",
-    "semantic_hash": "22b22037e968511234837dcce9c5da4c"
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/App.tsx": {
+    "mtime": 1783078167.1570385,
+    "ast_hash": "c2853cc785d8d677b2b862a7ffcc049e",
+    "semantic_hash": "c2853cc785d8d677b2b862a7ffcc049e"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/Chapter2.tsx": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2.tsx": {
     "mtime": 1782841088.4016335,
     "ast_hash": "7984fc58c007b1f8b44cb0de5ec57151",
     "semantic_hash": "7984fc58c007b1f8b44cb0de5ec57151"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/Chapter2_2.tsx": {
-    "mtime": 1782841856.9267058,
-    "ast_hash": "691370f4c1ce957a31a9e274244bb6e4",
-    "semantic_hash": "691370f4c1ce957a31a9e274244bb6e4"
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2_2.tsx": {
+    "mtime": 1783068390.7467108,
+    "ast_hash": "871dcb0274377ad5c5d1bd3b0ef855cd",
+    "semantic_hash": "871dcb0274377ad5c5d1bd3b0ef855cd"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/Chapter3.tsx": {
-    "mtime": 1782581704.5562458,
-    "ast_hash": "e47e3994d9b1e3405b94beac80c403d4",
-    "semantic_hash": "e47e3994d9b1e3405b94beac80c403d4"
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2_3a.tsx": {
+    "mtime": 1782843115.0127573,
+    "ast_hash": "c9fb71b843e947e8819dea0e4bb11bfd",
+    "semantic_hash": "c9fb71b843e947e8819dea0e4bb11bfd"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/ChapterSelect.tsx": {
-    "mtime": 1782842105.2464128,
-    "ast_hash": "ca1336e1042108d04111ccc8bbe663ff",
-    "semantic_hash": "ca1336e1042108d04111ccc8bbe663ff"
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2_3b.tsx": {
+    "mtime": 1782845134.0154355,
+    "ast_hash": "cc1087e1181a67c93124429456a57426",
+    "semantic_hash": "cc1087e1181a67c93124429456a57426"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/badge.tsx": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2_3c.tsx": {
+    "mtime": 1782845671.2958274,
+    "ast_hash": "9600de36936a3cdf03a1d9093ee571f7",
+    "semantic_hash": "9600de36936a3cdf03a1d9093ee571f7"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2_3d.tsx": {
+    "mtime": 1782845603.6904585,
+    "ast_hash": "1db51ba100fbf87fb621914baabfb0b8",
+    "semantic_hash": "1db51ba100fbf87fb621914baabfb0b8"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter2_3e.tsx": {
+    "mtime": 1782845611.050787,
+    "ast_hash": "3c5b1c494fde55a09a7300a448db3d0e",
+    "semantic_hash": "3c5b1c494fde55a09a7300a448db3d0e"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter3.tsx": {
+    "mtime": 1783066983.7751098,
+    "ast_hash": "8872c1519b0b902ac4b98e84e01f66c7",
+    "semantic_hash": "8872c1519b0b902ac4b98e84e01f66c7"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter3_2.tsx": {
+    "mtime": 1782849094.2712624,
+    "ast_hash": "a8616c3f480dc6a94486a6e6c5194de4",
+    "semantic_hash": "a8616c3f480dc6a94486a6e6c5194de4"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter3_3.tsx": {
+    "mtime": 1782850602.2879264,
+    "ast_hash": "1cf4610ebc623326f478a518c3316388",
+    "semantic_hash": "1cf4610ebc623326f478a518c3316388"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter3_4.tsx": {
+    "mtime": 1782851591.0648196,
+    "ast_hash": "cd48a8217c8da0e3a263cd6e3e4a5714",
+    "semantic_hash": "cd48a8217c8da0e3a263cd6e3e4a5714"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4.tsx": {
+    "mtime": 1783004773.362209,
+    "ast_hash": "bee31748ed41bf6f0600ab5d680ebc5d",
+    "semantic_hash": "bee31748ed41bf6f0600ab5d680ebc5d"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_2.tsx": {
+    "mtime": 1783004978.9234095,
+    "ast_hash": "65866fcffd48fd77e8e6d634b78a5c98",
+    "semantic_hash": "65866fcffd48fd77e8e6d634b78a5c98"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_3.tsx": {
+    "mtime": 1783005176.2343297,
+    "ast_hash": "c54187c8d6deb9f10fc8c0d8b2f524ab",
+    "semantic_hash": "c54187c8d6deb9f10fc8c0d8b2f524ab"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_4.tsx": {
+    "mtime": 1783005366.4949334,
+    "ast_hash": "e595f0af3fb43fedecd76a4921fae5ac",
+    "semantic_hash": "e595f0af3fb43fedecd76a4921fae5ac"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_5.tsx": {
+    "mtime": 1783025199.4046905,
+    "ast_hash": "03d9e4497ed5669d13156a618ad6f621",
+    "semantic_hash": "03d9e4497ed5669d13156a618ad6f621"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_6.tsx": {
+    "mtime": 1783024716.9833753,
+    "ast_hash": "ce0b86474883f9eec685aaaf4a76a7ba",
+    "semantic_hash": "ce0b86474883f9eec685aaaf4a76a7ba"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_7.tsx": {
+    "mtime": 1783025172.8706155,
+    "ast_hash": "258309e12e65dd039ea019e66992831b",
+    "semantic_hash": "258309e12e65dd039ea019e66992831b"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_8.tsx": {
+    "mtime": 1783026315.5038865,
+    "ast_hash": "1d5be4aa5880e673ab46c251ca09b4a2",
+    "semantic_hash": "1d5be4aa5880e673ab46c251ca09b4a2"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter4_9.tsx": {
+    "mtime": 1783027645.1494386,
+    "ast_hash": "745500abf758cf92d1c27f92d0f1d49d",
+    "semantic_hash": "745500abf758cf92d1c27f92d0f1d49d"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter5.tsx": {
+    "mtime": 1783066822.1988614,
+    "ast_hash": "470655592c3a99e5e4a475785d3e164c",
+    "semantic_hash": "470655592c3a99e5e4a475785d3e164c"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter5_2.tsx": {
+    "mtime": 1783066929.905431,
+    "ast_hash": "1d0737dfdcc3b3e8af615184bfe48e4c",
+    "semantic_hash": "1d0737dfdcc3b3e8af615184bfe48e4c"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/Chapter5_3.tsx": {
+    "mtime": 1783078194.1283772,
+    "ast_hash": "62bbd0f5a34d0a58992735b140bdd759",
+    "semantic_hash": "62bbd0f5a34d0a58992735b140bdd759"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/ChapterSelect.tsx": {
+    "mtime": 1783078176.1904433,
+    "ast_hash": "d685fb98ec30af0890d36d17188eb346",
+    "semantic_hash": "d685fb98ec30af0890d36d17188eb346"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/components/study/kit.tsx": {
+    "mtime": 1782842995.3462002,
+    "ast_hash": "5da49d81397e510921b0722df5d67fb8",
+    "semantic_hash": "5da49d81397e510921b0722df5d67fb8"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/components/ui/badge.tsx": {
     "mtime": 1782580424.6778178,
     "ast_hash": "497d45e789e04e1a3263b4edbd982da6",
     "semantic_hash": "497d45e789e04e1a3263b4edbd982da6"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/button.tsx": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/components/ui/button.tsx": {
     "mtime": 1782580424.6779141,
     "ast_hash": "d5087d8fbd2a08c21e234d2797abb5da",
     "semantic_hash": "d5087d8fbd2a08c21e234d2797abb5da"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/card.tsx": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/components/ui/card.tsx": {
     "mtime": 1782580424.6779926,
     "ast_hash": "d0f2f9f62a7ff989b19ec86b5aa9e3fb",
     "semantic_hash": "d0f2f9f62a7ff989b19ec86b5aa9e3fb"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/components/ui/progress.tsx": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/components/ui/progress.tsx": {
     "mtime": 1782580424.6777067,
     "ast_hash": "379bf91f65fba1d78739a3e49f2c40e4",
     "semantic_hash": "379bf91f65fba1d78739a3e49f2c40e4"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/lib/utils.ts": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/lib/utils.ts": {
     "mtime": 1782580099.453447,
     "ast_hash": "9a4cc6f9f3155ffdc1fa7c2c097f6429",
     "semantic_hash": "9a4cc6f9f3155ffdc1fa7c2c097f6429"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/main.tsx": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/main.tsx": {
     "mtime": 1782579391.0885506,
     "ast_hash": "787e5a07efeb2bf6209d5937195f2f68",
     "semantic_hash": "787e5a07efeb2bf6209d5937195f2f68"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/tsconfig.app.json": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/tsconfig.app.json": {
     "mtime": 1782580403.2513618,
     "ast_hash": "9349c4967c68a9ba8fa3f32acde5607e",
     "semantic_hash": "9349c4967c68a9ba8fa3f32acde5607e"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/tsconfig.json": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/tsconfig.json": {
     "mtime": 1782579391.0886264,
     "ast_hash": "a3d39fa780ebff65444de257f291ce6c",
     "semantic_hash": "a3d39fa780ebff65444de257f291ce6c"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/tsconfig.node.json": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/tsconfig.node.json": {
     "mtime": 1782579391.0886612,
     "ast_hash": "f9cb81ddcea69ffdab672fc8c48dca66",
     "semantic_hash": "f9cb81ddcea69ffdab672fc8c48dca66"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/vite.config.ts": {
-    "mtime": 1782580077.1256616,
-    "ast_hash": "6aa8047ceeadde5357d48ef427f54b24",
-    "semantic_hash": "6aa8047ceeadde5357d48ef427f54b24"
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/vite.config.ts": {
+    "mtime": 1782853195.0012312,
+    "ast_hash": "fb43c9fe5b077954cb1d0c0e494e4b43",
+    "semantic_hash": "fb43c9fe5b077954cb1d0c0e494e4b43"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/CLAUDE.md": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/.github/workflows/deploy.yml": {
+    "mtime": 1783069847.1859896,
+    "ast_hash": "beb6ca11f8269033ef2bd8c56154bbb6",
+    "semantic_hash": "beb6ca11f8269033ef2bd8c56154bbb6"
+  },
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/CLAUDE.md": {
     "mtime": 1782840790.0297024,
     "ast_hash": "db31aff63390d955e119b2d3721d7785",
     "semantic_hash": "db31aff63390d955e119b2d3721d7785"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/README.md": {
-    "mtime": 1782579391.08904,
-    "ast_hash": "9b29c5addc63360d0eee180ef76cc5d5",
-    "semantic_hash": "9b29c5addc63360d0eee180ef76cc5d5"
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/README.md": {
+    "mtime": 1782852757.261362,
+    "ast_hash": "ea316646e5f2386c9a37e15e65ca020c",
+    "semantic_hash": "ea316646e5f2386c9a37e15e65ca020c"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/index.html": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/index.html": {
     "mtime": 1782579391.0879831,
     "ast_hash": "1af08b84ac4e88bf1f81d578d3d15644",
     "semantic_hash": "1af08b84ac4e88bf1f81d578d3d15644"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/public/favicon.svg": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/public/favicon.svg": {
     "mtime": 1782579391.0881705,
     "ast_hash": "7e840862161341271697daa99a40d76b",
     "semantic_hash": "7e840862161341271697daa99a40d76b"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/public/icons.svg": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/public/icons.svg": {
     "mtime": 1782579391.0882125,
     "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
     "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/assets/hero.png": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/assets/hero.png": {
     "mtime": 1782579391.0883994,
     "ast_hash": "aead493361b27e7510691c5d7072dfc1",
     "semantic_hash": "aead493361b27e7510691c5d7072dfc1"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/assets/react.svg": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/assets/react.svg": {
     "mtime": 1782579391.0884407,
     "ast_hash": "f0402b67b6ce880f65666bb49e841696",
     "semantic_hash": "f0402b67b6ce880f65666bb49e841696"
   },
-  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/Visualization-Code/src/assets/vite.svg": {
+  "/home/amby/Documents/Summer 2026 Bayreuth/HPC/hpc-study-tool/src/assets/vite.svg": {
     "mtime": 1782579391.0884771,
     "ast_hash": "9960a24288958394ac50e57ff638b036",
     "semantic_hash": "9960a24288958394ac50e57ff638b036"

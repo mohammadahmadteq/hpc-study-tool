@@ -17,7 +17,23 @@
       "Bash(gh run *)",
       "Bash(git fetch *)",
       "Bash(xargs -I{} echo {})",
-      "Bash(pkill -f \"vite\")"
+      "Bash(pkill -f \"vite\")",
+      "Bash(grep -n \"cache\" \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/extract.py\" | head -50)",
+      "Read(//home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/**)",
+      "Bash(grep -n \"def load_cached\\\\|def save_cached\\\\|def _cache_key\\\\|def _hash\" -A 20 \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/cache.py\" | head -100)",
+      "Bash(grep -n \"package.json\\\\|package_json\\\\|pkg\\\\[.name.\\\\]\\\\|\\\\\"name\\\\\"\\\\]\" \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/extract.py\" | head -30)",
+      "Bash(grep -n \"def.*json\\\\|stem\\\\b\" \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/extract.py\" | sed -n '1,60p')",
+      "Bash(sed -n '60,100p' \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/extract.py\")",
+      "Bash(grep -n \"project_name\\\\|pkg_name\\\\|manifest_name\\\\|_project_stem\\\\|proj_stem\" \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/extract.py\" | head -20)",
+      "Bash(sed -n '10490,10620p' \"/home/amby/.local/share/uv/tools/graphifyy/lib/python3.14/site-packages/graphify/extract.py\")",
+      "Bash(graphify export *)",
+      "Bash(awk '/^## God Nodes/,/^## [A-Z]/' graphify-out/GRAPH_REPORT.md)",
+      "Bash(awk '/^## Surprising Connections/,/^## [A-Z]/' graphify-out/GRAPH_REPORT.md)",
+      "Bash(awk '/^## Suggested Questions/,0' graphify-out/GRAPH_REPORT.md)",
+      "Bash(curl -s http://localhost:5183/hpc-study-tool/ -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost:5183/hpc-study-tool/src/Chapter6.tsx\" -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(pkill -f \"vite --port 5183\")",
+      "Bash(pkill -f \"vite --port 5184\")"
     ]
   }
 }
