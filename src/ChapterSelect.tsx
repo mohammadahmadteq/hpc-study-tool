@@ -213,6 +213,13 @@ const chapters: Chapter[] = [
         description:
           'Mutual exclusion with critical (named/unnamed) and atomic; the reduction clause and its private-copy semantics; event synchronization with barrier and the flush memory-consistency model; the master directive; simple and nestable lock variables (set/unset/test); and wall-clock timing with omp_get_wtime.',
       },
+      {
+        id: '5.3',
+        label: '§5.3',
+        title: 'Parallel Tasks',
+        description:
+          'Beyond regular parallel loops: hand-rolled task pools with OpenMP 2.5 (nextTask/runTask, critical); the Intel taskq/task workqueueing extensions with captureprivate; and the standardized OpenMP 3.0 task directive — firstprivate capture, untied/if clauses, taskwait, scheduling points, and the postorder-traversal correctness argument.',
+      },
     ],
   },
 ]

@@ -15,7 +15,9 @@
       "Bash(cat .github/workflows/*.yml)",
       "Bash(bun -v)",
       "Bash(gh run *)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(pkill -f \"vite\")"
     ]
   }
 }

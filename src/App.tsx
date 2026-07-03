@@ -23,6 +23,7 @@ import LoopTilingStudyTool from './Chapter4_8'
 import LocalityStudyTool from './Chapter4_9'
 import OpenMPStudyTool from './Chapter5'
 import SynchronizationStudyTool from './Chapter5_2'
+import ParallelTasksStudyTool from './Chapter5_3'
 
 export default function App() {
   const [view, setView] = useState<string | null>(null)
@@ -63,6 +64,7 @@ export default function App() {
   if (view === '4.9') return wrap(<LocalityStudyTool />)
   if (view === '5.1') return wrap(<OpenMPStudyTool />)
   if (view === '5.2') return wrap(<SynchronizationStudyTool />)
+  if (view === '5.3') return wrap(<ParallelTasksStudyTool />)
 
   return <ChapterSelect onSelect={setView} />
 }
