@@ -498,9 +498,13 @@ out[B2] = {d4,d5} ∪ (D − {d1,d2,d7}) = {d3,d4,d5,d6}`}</Formula>
   },
 ]
 
-/** set with elements that are new vs. the previous snapshot highlighted */
+/**
+ * Set with elements that are new vs. the previous snapshot highlighted green (a union grew),
+ * and elements that just disappeared shown struck through (an intersection shrank).
+ */
 const SetDiff: React.FC<{ xs: string[]; prev?: string[] }> = ({ xs, prev }) => {
-  if (!xs.length) return <span className="font-mono">∅</span>
+  const removed = prev ? prev.filter((x) => !xs.includes(x)) : []
+  if (!xs.length && !removed.length) return <span className="font-mono">∅</span>
   return (
     <span className="font-mono">
       {'{'}
@@ -510,6 +514,12 @@ const SetDiff: React.FC<{ xs: string[]; prev?: string[] }> = ({ xs, prev }) => {
           <span className={cn(prev && !prev.includes(x) && 'text-emerald-600 dark:text-emerald-400 font-bold')}>
             {sub(x)}
           </span>
+        </React.Fragment>
+      ))}
+      {removed.map((x, k) => (
+        <React.Fragment key={`rm-${x}`}>
+          {(xs.length > 0 || k > 0) && ', '}
+          <span className="line-through text-red-500/70 dark:text-red-400/60">{sub(x)}</span>
         </React.Fragment>
       ))}
       {'}'}
@@ -882,6 +892,525 @@ in[B1]  = {} ∪ ({a,b} \\ {a,b}) = ∅`}</Formula>
 ]
 
 /* ------------------------------------------------------------------ *
+ *  Unified worked example — ONE flow graph, run through all four
+ *  classic problems with the SAME local/global-set format each time.
+ *
+ *  This is a different, medium-complexity program from the individual
+ *  section examples above: a loop with a nested branch. gen/kill-style
+ *  local sets and the in/out global sets are computed by an actual
+ *  fixpoint solver (below) rather than transcribed by hand, so the
+ *  numbers shown are guaranteed consistent with the algorithm.
+ * ------------------------------------------------------------------ */
+
+const exNodes: GNode[] = [
+  { id: 'entry', x: 150, y: 16, label: 'entry', point: true },
+  { id: 'B1', x: 150, y: 68, label: 'B1' },
+  { id: 'B2', x: 150, y: 132, label: 'B2' },
+  { id: 'B6', x: 278, y: 132, label: 'B6' },
+  { id: 'B3', x: 150, y: 196, label: 'B3' },
+  { id: 'B4', x: 150, y: 260, label: 'B4' },
+  { id: 'B5', x: 150, y: 324, label: 'B5' },
+  { id: 'exit', x: 278, y: 380, label: 'exit', point: true },
+]
+const exEdges: GEdge[] = [
+  { from: 'entry', to: 'B1' },
+  { from: 'B1', to: 'B2' },
+  { from: 'B2', to: 'B3', label: 'loop' },
+  { from: 'B2', to: 'B6', label: 'exit', bend: -36 },
+  { from: 'B3', to: 'B5', label: 'true', bend: -78 },
+  { from: 'B3', to: 'B4', label: 'false' },
+  { from: 'B4', to: 'B5' },
+  { from: 'B5', to: 'B2', label: 'back edge', bend: 70 },
+  { from: 'B6', to: 'exit' },
+]
+
+const exCode: Record<string, string> = {
+  B1: 'i := 1\nx := a + b\nz := 0',
+  B2: 'if i > n goto B6',
+  B3: 'if x > 10 goto B5',
+  B4: 'b := b − 1\ny := b + 1\nx := y',
+  B5: 'z := a + b\ni := i + 1\ngoto B2',
+  B6: 'print(x, z)',
+}
+
+const fullTacListing = `B1:  i := 1
+     x := a + b
+     z := 0
+B2:  if i > n  goto B6              ── loop header (test at top)
+B3:  if x > 10 goto B5              ── branch nested inside the loop body
+B4:  b := b − 1
+     y := b + 1
+     x := y
+B5:  z := a + b
+     i := i + 1
+     goto B2                        ── back edge
+B6:  print(x, z)`
+
+const exPreds: Maps = { B1: [], B2: ['B1', 'B5'], B3: ['B2'], B4: ['B3'], B5: ['B3', 'B4'], B6: ['B2'] }
+const exSuccs: Maps = { B1: ['B2'], B2: ['B3', 'B6'], B3: ['B5', 'B4'], B4: ['B5'], B5: ['B2'], B6: [] }
+const exOrderFwd = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
+const exOrderBwd = ['B6', 'B5', 'B4', 'B3', 'B2', 'B1']
+
+/* Generic set algebra (plain string tokens — reused across all four problems) */
+const uUnion = (a: string[], b: string[]) => Array.from(new Set([...a, ...b]))
+const uIntersect = (a: string[], b: string[]) => a.filter((x) => b.includes(x))
+const uDiff = (a: string[], b: string[]) => a.filter((x) => !b.includes(x))
+const uSame = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
+const uOrder = (xs: string[], universe: string[]) => universe.filter((u) => xs.includes(u))
+
+type Direction2 = 'forward' | 'backward'
+type Merge2 = 'union' | 'intersection'
+
+interface DFConfig {
+  id: 'rd' | 'lv' | 'ae' | 'vb'
+  name: string
+  direction: Direction2
+  merge: Merge2
+  genLabel: string
+  killLabel: string
+  universeLabel: string
+  universe: string[]
+  legend?: React.ReactNode
+  gen: Maps
+  kill: Maps
+  blurb: React.ReactNode
+}
+
+const exConfigs: DFConfig[] = [
+  {
+    id: 'rd',
+    name: 'Reaching definitions',
+    direction: 'forward',
+    merge: 'union',
+    genLabel: 'gen',
+    killLabel: 'kill',
+    universeLabel: 'definitions',
+    universe: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8'],
+    gen: { B1: ['d1', 'd2', 'd3'], B2: [], B3: [], B4: ['d4', 'd5', 'd6'], B5: ['d7', 'd8'], B6: [] },
+    kill: { B1: ['d6', 'd7', 'd8'], B2: [], B3: [], B4: ['d2'], B5: ['d1', 'd3'], B6: [] },
+    legend: (
+      <>
+        <Code>d1</Code>:i:=1, <Code>d2</Code>:x:=a+b, <Code>d3</Code>:z:=0 (B1) · <Code>d4</Code>:b:=b−1,{' '}
+        <Code>d5</Code>:y:=b+1, <Code>d6</Code>:x:=y (B4) · <Code>d7</Code>:z:=a+b, <Code>d8</Code>:i:=i+1 (B5)
+      </>
+    ),
+    blurb: (
+      <>
+        <strong>Forward · union.</strong> Every variable defined in <Code>B1</Code> (<Code>i, x, z</Code>) gets
+        re-defined once more inside the loop, so each of <Code>d1, d2, d3</Code> has exactly one killer (
+        <Code>d8, d6, d7</Code>). Watch how <Code>in[B2]</Code> becomes the <em>full</em> universe once the back edge
+        has fed <Code>out[B5]</Code> back in.
+      </>
+    ),
+  },
+  {
+    id: 'lv',
+    name: 'Live variables',
+    direction: 'backward',
+    merge: 'union',
+    genLabel: 'use',
+    killLabel: 'def',
+    universeLabel: 'variables',
+    universe: ['a', 'b', 'i', 'n', 'x', 'y', 'z'],
+    gen: { B1: [], B2: ['i', 'n'], B3: ['x'], B4: ['b'], B5: ['a', 'b', 'i'], B6: ['x', 'z'] },
+    kill: { B1: ['i', 'x', 'z'], B2: [], B3: [], B4: ['b', 'y', 'x'], B5: ['z', 'i'], B6: [] },
+    blurb: (
+      <>
+        <strong>Backward · union.</strong> Information is pushed from <Code>B6</Code> back up to <Code>B1</Code>. Note{' '}
+        <Code>n</Code> is live almost everywhere (it's only ever read, in the loop test) while <Code>b</Code> is live
+        across the whole loop because <Code>B4</Code> both reads and rewrites it.
+      </>
+    ),
+  },
+  {
+    id: 'ae',
+    name: 'Available expressions',
+    direction: 'forward',
+    merge: 'intersection',
+    genLabel: 'e-gen',
+    killLabel: 'e-kill',
+    universeLabel: 'expressions (just a+b here)',
+    universe: ['a+b'],
+    gen: { B1: ['a+b'], B2: [], B3: [], B4: [], B5: ['a+b'], B6: [] },
+    kill: { B1: [], B2: [], B3: [], B4: ['a+b'], B5: [], B6: [] },
+    blurb: (
+      <>
+        <strong>Forward · intersection.</strong> <Code>B4</Code> kills <Code>a+b</Code> (it rewrites <Code>b</Code>)
+        and never recomputes it, so <Code>in[B5] = out[B3] ∩ out[B4] = ∅</Code> — the <Code>a+b</Code> in{' '}
+        <Code>B5</Code> is <Bad>not</Bad> a valid common-subexpression reuse, even though it would be available coming
+        only from <Code>B3</Code>.
+      </>
+    ),
+  },
+  {
+    id: 'vb',
+    name: 'Very busy expressions',
+    direction: 'backward',
+    merge: 'intersection',
+    genLabel: 'used',
+    killLabel: 'killed',
+    universeLabel: 'expressions (just a+b here)',
+    universe: ['a+b'],
+    gen: { B1: ['a+b'], B2: [], B3: [], B4: [], B5: ['a+b'], B6: [] },
+    kill: { B1: [], B2: [], B3: [], B4: ['a+b'], B5: [], B6: [] },
+    blurb: (
+      <>
+        <strong>Backward · intersection</strong> — the mirror image of available expressions. <Code>a+b</Code> is very
+        busy only where it's used immediately (entering <Code>B1</Code> and <Code>B5</Code>): from <Code>B2</Code> a
+        path can leave via <Code>B6</Code> without ever touching <Code>a+b</Code> again, so it is not "definitely
+        needed" there.
+      </>
+    ),
+  },
+]
+
+interface DFStep {
+  pass: number
+  block: string
+  changed: boolean
+  changeSoFar: boolean
+  ins: Maps
+  outs: Maps
+}
+
+/** Runs the standard iterative fixpoint algorithm for any (direction, merge) combination. */
+function solveDataFlow(cfg: DFConfig): { init: { ins: Maps; outs: Maps }; steps: DFStep[] } {
+  const order = cfg.direction === 'forward' ? exOrderFwd : exOrderBwd
+  const neighborsOf = cfg.direction === 'forward' ? exPreds : exSuccs
+  const mergeFn = cfg.merge === 'union' ? uUnion : uIntersect
+  const ins: Maps = {}
+  const outs: Maps = {}
+  for (const b of order) {
+    const hasNbrs = (neighborsOf[b] || []).length > 0
+    const initPrimary = cfg.merge === 'union' ? cfg.gen[b] : hasNbrs ? uDiff(cfg.universe, cfg.kill[b]) : cfg.gen[b]
+    if (cfg.direction === 'forward') {
+      outs[b] = uOrder(initPrimary, cfg.universe)
+      ins[b] = []
+    } else {
+      ins[b] = uOrder(initPrimary, cfg.universe)
+      outs[b] = []
+    }
+  }
+  const init = { ins: { ...ins }, outs: { ...outs } }
+  const steps: DFStep[] = []
+  let anyChanged = true
+  let pass = 0
+  while (anyChanged && pass < 30) {
+    pass++
+    anyChanged = false
+    for (const b of order) {
+      const nbrs = neighborsOf[b] || []
+      const nbrPrimaries = nbrs.map((n) => (cfg.direction === 'forward' ? outs[n] : ins[n]))
+      const combined = nbrPrimaries.length ? nbrPrimaries.reduce(mergeFn) : []
+      const newPrimary = uOrder(uUnion(cfg.gen[b], uDiff(combined, cfg.kill[b])), cfg.universe)
+      const oldPrimary = cfg.direction === 'forward' ? outs[b] : ins[b]
+      const didChange = !uSame(newPrimary, oldPrimary)
+      if (didChange) anyChanged = true
+      if (cfg.direction === 'forward') {
+        ins[b] = uOrder(combined, cfg.universe)
+        outs[b] = newPrimary
+      } else {
+        outs[b] = uOrder(combined, cfg.universe)
+        ins[b] = newPrimary
+      }
+      steps.push({ pass, block: b, changed: didChange, changeSoFar: anyChanged, ins: { ...ins }, outs: { ...outs } })
+    }
+  }
+  return { init, steps }
+}
+
+/** Generates the algorithm pseudocode for a config so the exact text shown always matches what's computed. */
+function algoLines(cfg: DFConfig): string[] {
+  const nbrWord = cfg.direction === 'forward' ? 'predecessors P' : 'successors S'
+  const combinedName = cfg.direction === 'forward' ? 'in[B]' : 'out[B]'
+  const primaryName = cfg.direction === 'forward' ? 'out[B]' : 'in[B]'
+  const otherName = cfg.direction === 'forward' ? 'out[P]' : 'in[S]'
+  const mergeSym = cfg.merge === 'union' ? '∪' : '∩'
+  const initRhs = cfg.merge === 'union' ? `${cfg.genLabel}[B]` : `U − ${cfg.killLabel}[B]   (U = all ${cfg.universeLabel})`
+  const order = cfg.direction === 'forward' ? exOrderFwd : exOrderBwd
+  return [
+    `for each block B:  ${primaryName} := ${initRhs}`,
+    'change := true',
+    'while change:',
+    '    change := false',
+    `    for B in ${order.join(', ')}:`,
+    `        ${combinedName}  := ${mergeSym} over ${nbrWord} of B  ${otherName}`,
+    `        ${primaryName} := ${cfg.genLabel}[B] ∪ (${combinedName} − ${cfg.killLabel}[B])`,
+    `        if ${primaryName} changed: change := true`,
+    'done — in[B] / out[B] are the solution',
+  ]
+}
+
+/** Click a block to compare its local sets across all four analyses at once — same shape, same table. */
+const AllLocalSetsExplorer: React.FC = () => {
+  const [sel, setSel] = useState('B4')
+  return (
+    <div>
+      <p className="text-sm mb-2">
+        Click a block. Its statements and its <em>local</em> sets under all four analyses appear side by side — same
+        table shape every time, only the meaning of "gen-like" / "kill-like" changes.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <FlowGraph
+          nodes={exNodes}
+          edges={exEdges}
+          width={340}
+          height={410}
+          fillOf={(id) => (id === sel ? 'active' : 'none')}
+          onPick={(id) => exCode[id] && setSel(id)}
+        />
+        <div>
+          <Pre>{`${sel}:\n${exCode[sel]
+            .split('\n')
+            .map((l) => '  ' + l)
+            .join('\n')}`}</Pre>
+          <Table
+            head={['Analysis', 'gen-like[B]', 'kill-like[B]']}
+            rows={exConfigs.map((c) => [
+              <div>
+                <div className="font-medium">{c.name}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {c.genLabel}/{c.killLabel} · {c.direction} · {c.merge}
+                </div>
+              </div>,
+              <SetT xs={c.gen[sel]} className="text-emerald-600 dark:text-emerald-400" />,
+              <SetT xs={c.kill[sel]} className="text-red-600 dark:text-red-400" />,
+            ])}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Generic step-by-step global-iteration viewer: works for any direction / merge combination. */
+const UnifiedSolverPanel: React.FC<{ cfg: DFConfig }> = ({ cfg }) => {
+  const { init, steps } = React.useMemo(() => solveDataFlow(cfg), [cfg])
+  const display = React.useMemo<DFStep[]>(() => {
+    const initStep: DFStep = { pass: 0, block: '', changed: false, changeSoFar: true, ins: init.ins, outs: init.outs }
+    const last = steps[steps.length - 1]
+    const doneStep: DFStep = { pass: last.pass, block: '', changed: false, changeSoFar: false, ins: last.ins, outs: last.outs }
+    return [initStep, ...steps, doneStep]
+  }, [init, steps])
+
+  const [i, setI] = useState(0)
+  useEffect(() => setI(0), [cfg.id])
+  const idx = Math.min(i, display.length - 1)
+  const s = display[idx]
+  const prev = idx > 0 ? display[idx - 1] : undefined
+  const go = (d: number) => setI((p) => Math.max(0, Math.min(display.length - 1, p + d)))
+
+  const isInit = idx === 0
+  const isDone = idx === display.length - 1
+  const phase = isInit ? 'Init' : isDone ? 'Done' : `Pass ${s.pass}`
+  const hl = isInit ? [1, 2] : isDone ? [3, 9] : [4, 6, 7, 8]
+  const lines = algoLines(cfg)
+
+  const activeEdges = (cfg.direction === 'forward' ? exEdges.filter((e) => e.to === s.block) : exEdges.filter((e) => e.from === s.block)).map(edgeKey)
+  const fillOf = (id: string): Fill => (id === s.block ? 'active' : 'none')
+
+  const combinedLabel = cfg.direction === 'forward' ? 'in' : 'out'
+  const primaryLabel = cfg.direction === 'forward' ? 'out' : 'in'
+  const nbrWord = cfg.direction === 'forward' ? 'predecessors' : 'successors'
+  const mergeWord = cfg.merge === 'union' ? '∪ union' : '∩ intersection'
+
+  const combinedArr = s.block ? (cfg.direction === 'forward' ? s.ins[s.block] : s.outs[s.block]) : []
+  const primaryArr = s.block ? (cfg.direction === 'forward' ? s.outs[s.block] : s.ins[s.block]) : []
+  const prevCombinedArr = prev && s.block ? (cfg.direction === 'forward' ? prev.ins[s.block] : prev.outs[s.block]) : undefined
+  const prevPrimaryArr = prev && s.block ? (cfg.direction === 'forward' ? prev.outs[s.block] : prev.ins[s.block]) : undefined
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">{phase}</span>
+        {s.block && <span className="px-2 py-0.5 rounded-full bg-muted font-mono">updating {s.block}</span>}
+        {!isInit && (
+          <span
+            className={cn(
+              'px-2 py-0.5 rounded-full font-mono font-semibold',
+              s.changeSoFar ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+            )}
+          >
+            change = {String(s.changeSoFar)}
+          </span>
+        )}
+        <span className="text-muted-foreground">
+          new in <span className="text-emerald-600 dark:text-emerald-400 font-bold">green</span>, dropped shown{' '}
+          <span className="line-through text-red-500/70 dark:text-red-400/60">struck through</span>
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <div>
+          <FlowGraph nodes={exNodes} edges={exEdges} width={340} height={410} fillOf={fillOf} activeEdges={activeEdges} />
+          <div className="bg-muted border rounded-lg p-2.5 text-[11px] font-mono leading-[1.6] mt-2 overflow-x-auto">
+            {lines.map((l, k) => (
+              <div key={k} className={cn('whitespace-pre rounded px-1 -mx-1', hl.includes(k + 1) ? 'bg-primary/15 text-foreground font-semibold' : 'text-muted-foreground')}>
+                {l}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px] border-collapse">
+              <thead>
+                <tr>
+                  <th className="bg-muted px-2 py-1 text-left font-medium border-b">B</th>
+                  <th className="bg-muted px-2 py-1 text-left font-medium border-b">in[B]</th>
+                  <th className="bg-muted px-2 py-1 text-left font-medium border-b">out[B]</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exOrderFwd.map((b) => (
+                  <tr key={b} className={cn('border-b last:border-b-0', b === s.block && 'bg-primary/10')}>
+                    <td className="px-2 py-1 font-mono font-semibold">
+                      {b}
+                      {b === s.block && !isInit && !isDone && (
+                        <span className="ml-1.5 text-[10px] font-sans font-semibold text-amber-600 dark:text-amber-400">
+                          {s.changed ? 'changed!' : 'stable'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      <SetDiff xs={s.ins[b]} prev={prev?.ins[b]} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <SetDiff xs={s.outs[b]} prev={prev?.outs[b]} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Panel className="text-sm mt-2">
+            {isInit && (
+              <>
+                Initialise every <Code>{primaryLabel}[B]</Code> to{' '}
+                {cfg.merge === 'union' ? (
+                  <>
+                    <Code>{cfg.genLabel}[B]</Code> (the smallest safe guess — union only ever grows)
+                  </>
+                ) : (
+                  <>
+                    <Code>
+                      U − {cfg.killLabel}[B]
+                    </Code>{' '}
+                    (the largest safe guess — intersection only ever shrinks)
+                  </>
+                )}
+                ; the opposite ({combinedLabel === 'in' ? 'out' : 'in'}) set starts empty. <Code>change := true</Code>{' '}
+                just gets us into the loop.
+              </>
+            )}
+            {!isInit && !isDone && s.block && (
+              <>
+                <div className="font-mono text-[12.5px]">
+                  {combinedLabel}[{s.block}] = {mergeWord} of {primaryLabel}[·] over {nbrWord} = <SetDiff xs={combinedArr} prev={prevCombinedArr} />
+                </div>
+                <div className="font-mono text-[12.5px] mt-1">
+                  {primaryLabel}[{s.block}] = {cfg.genLabel}[{s.block}] ∪ ({combinedLabel}[{s.block}] − {cfg.killLabel}[{s.block}]) ={' '}
+                  <SetDiff xs={primaryArr} prev={prevPrimaryArr} />
+                </div>
+                <div className="mt-1.5">
+                  {s.changed ? (
+                    <>
+                      <Code>{primaryLabel}[{s.block}]</Code> changed → <Bad>change := true</Bad> for this pass.
+                    </>
+                  ) : (
+                    <>
+                      Same as before → nothing new flows out of <Code>{s.block}</Code> this time.
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+            {isDone && (
+              <>
+                A full sweep changed no <Code>{primaryLabel}[B]</Code> → <Good>fixpoint reached</Good> after{' '}
+                <strong>{s.pass}</strong> pass{s.pass === 1 ? '' : 'es'}. The table above is the final solution for{' '}
+                <strong>{cfg.name}</strong>.
+              </>
+            )}
+          </Panel>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-3">
+        <Button variant="outline" size="sm" onClick={() => go(-1)} disabled={idx === 0}>
+          ← back
+        </Button>
+        <span className="flex-1 text-center text-xs text-muted-foreground">
+          step {idx + 1} of {display.length}
+        </span>
+        <Button variant="outline" size="sm" onClick={() => go(1)} disabled={idx === display.length - 1}>
+          next →
+        </Button>
+      </div>
+      <Progress value={Math.round(((idx + 1) / display.length) * 100)} className="mt-3" />
+    </div>
+  )
+}
+
+const UnifiedExampleSection: React.FC = () => {
+  const [sel, setSel] = useState<DFConfig['id']>('rd')
+  const cfg = exConfigs.find((c) => c.id === sel)!
+  return (
+    <>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">A second worked example — one flow graph, four analyses</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm mb-2">
+            A different, slightly bigger program: a loop (<Code>B2…B5</Code>) with an <Code>if</Code> nested inside its
+            body. It is run through <strong>all four</strong> classic problems below with exactly the same table
+            layout each time, so the local sets are easy to compare and the global fixpoint is easy to follow.
+          </p>
+          <Pre>{fullTacListing}</Pre>
+          {exConfigs[0].legend && (
+            <p className="text-xs text-muted-foreground mb-1">
+              <strong>Definitions</strong> (for reaching definitions, below): {exConfigs[0].legend}
+            </p>
+          )}
+          <AllLocalSetsExplorer />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Interactive — step through the global iteration, for each analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-1.5 mb-3" role="tablist" aria-label="Choose analysis">
+            {exConfigs.map((c) => (
+              <button
+                key={c.id}
+                role="tab"
+                aria-selected={sel === c.id}
+                onClick={() => setSel(c.id)}
+                className={cn(
+                  'text-[12px] px-2.5 py-1 rounded-full border transition-colors',
+                  sel === c.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+          <Panel className="text-sm mb-3">{cfg.blurb}</Panel>
+          <p className="text-xs text-muted-foreground mb-2">
+            The pseudocode on the left is generated straight from this analysis's direction ({cfg.direction}) and
+            merge operator ({cfg.merge}) — it is the exact same algorithm shape for every one of the four problems,
+            only <Code>{cfg.genLabel}</Code>/<Code>{cfg.killLabel}</Code>, the merge symbol, and the sweep direction
+            change.
+          </p>
+          <UnifiedSolverPanel cfg={cfg} />
+        </CardContent>
+      </Card>
+    </>
+  )
+}
+
+/* ------------------------------------------------------------------ *
  *  Reveal + Question card
  * ------------------------------------------------------------------ */
 
@@ -1124,6 +1653,8 @@ while change:
         <ReachingIteration />
       </CardContent>
     </Card>
+
+    <UnifiedExampleSection />
 
     <Card>
       <CardHeader className="pb-2">

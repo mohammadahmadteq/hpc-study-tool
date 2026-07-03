@@ -932,8 +932,8 @@ const WorkedStatic: React.FC = () => {
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §5.1, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §5.1, easy → hardest — all on <em>fresh</em> code, not the lecture's array-partition or
+      two-phase matrix-multiply examples. Q1 is fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
@@ -985,19 +985,22 @@ thread 3 : 6,7`}</Formula>
     <QuestionCard
       n={2}
       diff="Easy"
-      title="Classify shared vs. private"
+      title="Classify shared vs. private — with an edge case"
       statement={
         <>
           <p className="mb-2">
-            For the array-partition region below, state which variables must be <Code>shared</Code> and which must be{' '}
-            <Code>private</Code>, and explain what breaks if <Code>iam</Code> were shared.
+            For the region below, state which variables must be <Code>shared</Code> and which must be{' '}
+            <Code>private</Code>, and explain what breaks if <Code>lo</Code> were shared. The last thread must absorb
+            any remainder (<Code>total</Code> need not be a multiple of the team size).
           </p>
           <Pre>{`#pragma omp parallel /* clauses? */
 {
-  np       = omp_get_num_threads();
-  iam      = omp_get_thread_num();
-  mypoints = npoints / np;
-  compute_subdomain(x, iam, mypoints);
+  tid   = omp_get_thread_num();
+  nthr  = omp_get_num_threads();
+  chunk = total / nthr;
+  lo    = tid * chunk;
+  hi    = (tid == nthr - 1) ? total : lo + chunk;
+  process_range(data, lo, hi);
 }`}</Pre>
         </>
       }
@@ -1006,21 +1009,25 @@ thread 3 : 6,7`}</Formula>
           <Table
             head={['Variable', 'Class', 'Why']}
             rows={[
-              [<Code>x</Code>, <Tag tone="good">shared</Tag>, <>the one common array every thread works on</>],
-              [<Code>npoints</Code>, <Tag tone="good">shared</Tag>, <>a read-only total the threads all read</>],
-              [<Code>iam</Code>, <Tag tone="warn">private</Tag>, <>each thread's own id</>],
-              [<Code>np</Code>, <Tag tone="warn">private</Tag>, <>local copy of the team size</>],
-              [<Code>mypoints</Code>, <Tag tone="warn">private</Tag>, <>each thread's own slice size</>],
+              [<Code>data</Code>, <Tag tone="good">shared</Tag>, <>the one common array every thread works on</>],
+              [<Code>total</Code>, <Tag tone="good">shared</Tag>, <>a read-only total the threads all read</>],
+              [<Code>tid</Code>, <Tag tone="warn">private</Tag>, <>each thread's own id</>],
+              [<Code>nthr</Code>, <Tag tone="warn">private</Tag>, <>local copy of the team size</>],
+              [<Code>chunk</Code>, <Tag tone="warn">private</Tag>, <>depends on <Code>tid</Code>-independent but recomputed per-thread; must not be clobbered</>],
+              [<Code>lo</Code>, <Tag tone="warn">private</Tag>, <>each thread's own range start, derived from <Code>tid</Code></>],
+              [<Code>hi</Code>, <Tag tone="warn">private</Tag>, <>each thread's own range end</>],
             ]}
           />
           <p className="text-sm">
-            So: <Code>shared(x, npoints) private(iam, np, mypoints)</Code>.
+            So: <Code>shared(data, total) private(tid, nthr, chunk, lo, hi)</Code>.
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Bad>If <Code>iam</Code> were shared</Bad>, all threads write the same location in{' '}
-            <Code>iam = omp_get_thread_num()</Code> — a <strong>data race</strong>. Whatever value survives is used by
-            every thread's <Code>compute_subdomain(x, iam, …)</Code>, so threads process the wrong or identical
-            sub-domains. The result is undefined.
+            <Bad>If <Code>lo</Code> were shared</Bad>, every thread's assignment <Code>lo = tid * chunk</Code> writes the
+            <strong> same</strong> memory location — a data race on <Code>lo</Code> itself. Whichever thread's write
+            lands last "wins", so every thread may compute its <Code>hi</Code> and call{' '}
+            <Code>process_range(data, lo, hi)</Code> using <em>that one shared</em> <Code>lo</Code>: several threads
+            process the <strong>same</strong> sub-range (duplicated, wasted work and possibly a write race inside{' '}
+            <Code>process_range</Code>), while other index ranges are never processed at all.
           </Panel>
         </>
       }
@@ -1029,41 +1036,46 @@ thread 3 : 6,7`}</Formula>
     <QuestionCard
       n={3}
       diff="Medium"
-      title="The barrier between two loops"
+      title="Does the barrier's necessity depend on matching schedules?"
       statement={
         <>
           <p className="mb-2">
-            In the two-phase matrix multiply, one parallel region holds two <Code>omp for</Code> loops: the first zeroes{' '}
-            <Code>MC</Code>, the second accumulates into it.
+            One parallel region holds two <Code>omp for</Code> loops over the <strong>same</strong> shared array{' '}
+            <Code>g</Code>, but with <strong>different</strong> schedules:
           </p>
-          <Pre>{`#pragma omp for schedule(static)
-for (row...) for (col...) MC[row][col] = 0.0;
+          <Pre>{`#pragma omp parallel shared(g,h,n) private(i)
+{
+  #pragma omp for schedule(static)
+  for (i = 0; i < n; i++) g[i] = 0;
 
-#pragma omp for schedule(static)
-for (row...) for (col...) for (i...)
-  MC[row][col] += MA[row][i]*MB[i][col];`}</Pre>
+  #pragma omp for schedule(dynamic, 4)
+  for (i = 0; i < n; i++) g[i] += h[i] * h[i];
+}`}</Pre>
           <p className="mb-0">
-            What role does the implicit barrier between them play, and what could break if you added <Code>nowait</Code>{' '}
-            to the first loop?
+            Suppose someone adds <Code>nowait</Code> to the first loop, reasoning "it worked fine in the matrix-multiply
+            example, where every thread stuck to its own rows in both loops." Is the risk here still just{' '}
+            <em>fragile/coincidental</em>, or something stronger? Justify using the two schedules.
           </p>
         </>
       }
       solution={
         <>
           <p className="text-sm mb-1">
-            An <Code>omp for</Code> ends with an <strong>implicit barrier</strong>. It guarantees that <em>every</em>{' '}
-            element of <Code>MC</Code> has been zeroed before <em>any</em> thread starts the accumulation phase.
-          </p>
-          <p className="text-sm mb-1">
-            Under <Code>static</Code> scheduling each thread owns the <em>same</em> block of rows in both loops, so it
-            zeroes and then accumulates its own rows. But <Code>+=</Code> reads the current value of{' '}
-            <Code>MC[row][col]</Code> — which must already be <Code>0.0</Code>.
+            <strong>It is stronger — the corruption is essentially guaranteed, not coincidental.</strong> With{' '}
+            <Code>schedule(static)</Code> in the first loop and <Code>schedule(dynamic, 4)</Code> in the second, there is{' '}
+            <strong>no reason</strong> a thread's dynamically-claimed 4-element block in loop 2 lines up with the block
+            it statically owned in loop 1. Any thread that finishes its static chunk of loop 1 first can, under{' '}
+            <Code>nowait</Code>, immediately grab <em>any</em> dynamic block of loop 2 — very likely one <em>another</em>{' '}
+            thread hasn't zeroed yet.
           </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Bad>With <Code>nowait</Code> on the first loop</Bad>, a fast thread could reach the accumulation phase and do{' '}
-            <Code>MC += …</Code> on a cell a slower thread has not yet zeroed. That reads uninitialized/garbage and
-            corrupts the result. (Here every thread happens to touch only its own rows, so it is <em>fragile</em>: it
-            works by coincidence of the static split — change the schedule and it breaks. Keep the barrier.)
+            <Bad>Contrast with the "fragile" static/static case:</Bad> when both loops use{' '}
+            <Code>schedule(static)</Code> with the same trip count, each thread happens to own the identical range in
+            both loops, so <Code>nowait</Code> only breaks if the runtime doesn't preserve that (implementation-defined,
+            hence "fragile"). Here, mismatched schedules make the race the <strong>expected</strong> outcome, not an
+            edge case. <Good>General rule:</Good> the implicit barrier between dependent <Code>omp for</Code> loops
+            should be treated as load-bearing whenever the two loops don't provably assign identical iterations to
+            identical threads — which is exactly what differing schedules rule out.
           </Panel>
         </>
       }

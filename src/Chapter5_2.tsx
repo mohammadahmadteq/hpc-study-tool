@@ -792,8 +792,8 @@ double elapsed = omp_get_wtime() - start;`}</Pre>
 const Questions: React.FC = () => (
   <div className="space-y-3">
     <p className="text-sm text-muted-foreground">
-      Five exam-style problems on §5.2, easy → hardest. Q1 is fully worked to set the pattern; do the rest on paper, then
-      reveal.
+      Five exam-style problems on §5.2, easy → hardest — Q4 is on <em>fresh</em> code, not the lecture's neighbor-flush
+      sketch. Q1 is fully worked to set the pattern; do the rest on paper, then reveal.
     </p>
 
     <QuestionCard
@@ -921,48 +921,72 @@ sumB += fb(i);`}</Pre>
     <QuestionCard
       n={4}
       diff="Hard"
-      title="Why each flush is needed"
+      title="A three-stage handoff — spot the missing flush"
       statement={
         <>
           <p className="mb-2">
-            In the neighbor-synchronization sketch below, explain the purpose of each of the three flushes and the
-            barrier. What can go wrong if the <Code>flush(work)</Code> before <Code>sync[iam]=1</Code> is removed?
+            Three threads form a pipeline: thread 0 produces <Code>a_val</Code>, thread 1 consumes it and produces{' '}
+            <Code>b_val</Code>, thread 2 consumes <Code>b_val</Code>. (a) Explain the purpose of each existing flush. (b)
+            This sketch is missing exactly <strong>one</strong> flush that a correct hand-rolled handshake needs — find
+            it and explain what can go wrong without it.
           </p>
-          <Pre>{`sync[iam] = 0;
+          <Pre>{`a_ready = 0;  b_ready = 0;
 #pragma omp barrier
-work[iam] = do_work();
-#pragma omp flush(work)
-sync[iam] = 1;
-#pragma omp flush(sync)
-while (sync[neighbor] == 0)
-  #pragma omp flush(sync);
-combine(work[iam], work[neighbor]);`}</Pre>
+id = omp_get_thread_num();
+
+if (id == 0) {
+  a_val = produce_a();
+  #pragma omp flush(a_val)
+  a_ready = 1;
+  #pragma omp flush(a_ready)
+} else if (id == 1) {
+  while (a_ready == 0)
+    #pragma omp flush(a_ready);
+  b_val = transform(a_val);      // uses a_val here
+  #pragma omp flush(b_val)
+  b_ready = 1;
+  #pragma omp flush(b_ready)
+} else if (id == 2) {
+  while (b_ready == 0)
+    #pragma omp flush(b_ready);
+  #pragma omp flush(b_val)
+  consume(b_val);
+}`}</Pre>
         </>
       }
       solution={
         <>
           <div className="text-sm">
             <Step n="①">
-              <strong>barrier</strong> — makes sure every <Code>sync[]</Code> flag has been cleared to 0 before anyone
-              starts producing, so no thread reads a stale "ready".
+              <strong>barrier</strong> — every thread sees both flags cleared to 0 before anyone starts, so no thread
+              mistakes a stale "ready" for the real one.
             </Step>
             <Step n="②">
-              <strong>flush(work)</strong> — publishes this thread's <Code>work[iam]</Code> to memory <em>before</em> the
-              flag is raised.
+              <strong>flush(a_val)</strong> in thread 0, before <Code>a_ready=1</Code> — publishes the produced value{' '}
+              <em>before</em> announcing it.
             </Step>
             <Step n="③">
-              <strong>flush(sync)</strong> after <Code>sync[iam]=1</Code> — makes the raised flag visible to the neighbor.
+              <strong>flush(a_ready)</strong> after setting it (thread 0) and inside the spin loop (thread 1) — makes the
+              flag write visible and forces thread 1 to keep re-reading memory instead of a cached value.
             </Step>
             <Step n="④">
-              <strong>flush(sync)</strong> in the loop — re-reads the neighbor's flag from memory each spin instead of a
-              cached copy that might never change.
+              <strong>flush(b_val)</strong> / <strong>flush(b_ready)</strong> in thread 1 and the spin + flush in thread
+              2 — the identical pattern, one stage later.
             </Step>
           </div>
+          <p className="text-sm mb-1">
+            <strong>(b) The missing flush:</strong> thread 1 exits its <Code>a_ready</Code> spin loop and immediately
+            reads <Code>a_val</Code> in <Code>transform(a_val)</Code> — but there is <strong>no{' '}
+            <Code>#pragma omp flush(a_val)</Code></strong> between seeing the flag and reading the value.
+          </p>
           <Panel className="text-sm leading-relaxed mt-1">
-            <Bad>Remove the first <Code>flush(work)</Code></Bad> and the flag <Code>sync[iam]=1</Code> can become visible{' '}
-            <em>before</em> the write to <Code>work[iam]</Code> does. The neighbor sees "ready", exits its loop, and calls{' '}
-            <Code>combine</Code> on <strong>stale/garbage</strong> <Code>work</Code>. The flush enforces the ordering{' '}
-            <em>publish data, then announce it</em>.
+            <Bad>Without it,</Bad> thread 1 may still see a stale/cached <Code>a_val</Code> even though it correctly saw
+            the up-to-date <Code>a_ready</Code> flag — the flag and the data are flushed independently, so observing one
+            fresh value says nothing about the other. Thread 1 must <Code>flush(a_val)</Code> right after the spin
+            loop, mirroring exactly what thread 2 already does for <Code>b_val</Code>.{' '}
+            <Good>General lesson:</Good> in a chained handoff, <em>every</em> consumer role needs its own "flush the
+            data after seeing the flag" step — being in the middle of the pipeline (both consumer and producer) doesn't
+            exempt thread 1 from either side's obligations.
           </Panel>
         </>
       }

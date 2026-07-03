@@ -815,10 +815,11 @@ const Questions: React.FC = () => (
       statement={
         <>
           <p className="mb-2">List every data dependence (type + variable) and describe the dependence graph:</p>
-          <Pre>{`s1: x = a + b
-s2: y = x − c
-s3: x = d + e
-s4: a = x + y`}</Pre>
+          <Pre>{`s1: m = a + b
+s2: n = m * 2
+s3: m = c − d
+s4: p = m + n
+s5: a = p − 1`}</Pre>
         </>
       }
       solution={
@@ -827,18 +828,22 @@ s4: a = x + y`}</Pre>
           <Table
             head={['Pair', 'Var', 'Type', 'Reason']}
             rows={[
-              ['s1 → s2', 'x', <Dep k="t">δᵗ flow</Dep>, 's1 writes x, s2 reads x'],
-              ['s2 → s3', 'x', <Dep k="a">δᵃ anti</Dep>, 's2 reads x, s3 overwrites x'],
-              ['s1 → s3', 'x', <Dep k="o">δᵒ output</Dep>, 's1 and s3 both write x'],
-              ['s3 → s4', 'x', <Dep k="t">δᵗ flow</Dep>, 's3 writes x, s4 reads x'],
-              ['s2 → s4', 'y', <Dep k="t">δᵗ flow</Dep>, 's2 writes y, s4 reads y'],
-              ['s1 → s4', 'a', <Dep k="a">δᵃ anti</Dep>, 's1 reads a, s4 writes a'],
+              ['s1 → s2', 'm', <Dep k="t">δᵗ flow</Dep>, 's1 writes m, s2 reads m'],
+              ['s2 → s3', 'm', <Dep k="a">δᵃ anti</Dep>, 's2 reads m, s3 overwrites m'],
+              ['s1 → s3', 'm', <Dep k="o">δᵒ output</Dep>, 's1 and s3 both write m'],
+              ['s3 → s4', 'm', <Dep k="t">δᵗ flow</Dep>, 's3 writes m, s4 reads m'],
+              ['s2 → s4', 'n', <Dep k="t">δᵗ flow</Dep>, 's2 writes n, s4 reads n'],
+              ['s4 → s5', 'p', <Dep k="t">δᵗ flow</Dep>, 's4 writes p, s5 reads p'],
+              ['s1 → s5', 'a', <Dep k="a">δᵃ anti</Dep>, 's1 reads a, s5 overwrites a'],
             ]}
           />
           <Panel className="text-sm leading-relaxed mt-1">
-            The DDG has nodes s1–s4 and the six edges above. Note <Code>s1 δᵗ s4</Code> on <Code>x</Code> is{' '}
-            <em>address-based only</em>: s3 rewrites <Code>x</Code> before s4, so value-based analysis keeps just{' '}
-            <Code>s3 δᵗ s4</Code> for the value read by s4.
+            The DDG has nodes s1–s5 and the seven edges above. Note the <Code>m</Code> chain: s1's value of{' '}
+            <Code>m</Code> is consumed exactly once, by s2 (<Code>s1 δᵗ s2</Code>) — before s4 ever reads{' '}
+            <Code>m</Code>, s3 has already overwritten it. So the flow dependence that actually supplies s4's{' '}
+            <Code>m</Code> is <Code>s3 δᵗ s4</Code>, not s1; <Code>s1 δᵒ s3</Code> is a pure <em>output</em>{' '}
+            dependence (an ordering constraint on the write, carrying no value of its own) and must not be confused
+            with a flow edge into s4.
           </Panel>
         </>
       }
