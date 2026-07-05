@@ -410,6 +410,34 @@ const QuantSection: React.FC = () => (
   <div className="space-y-3">
     <Card>
       <CardHeader className="pb-2">
+        <CardTitle className="text-base">Notation — read this first</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm mb-2">
+          The reuse formulas below pack a lot into single letters. Here is every symbol used on this tab and the{' '}
+          <em>Group reuse</em> tab, in one place. The superscripts come from the German course terms:{' '}
+          <strong>z</strong> = <em>zeitlich</em> (temporal), <strong>r</strong> = <em>räumlich</em> (spatial),{' '}
+          <strong>g</strong> = <em>Gruppe</em> (group).
+        </p>
+        <Table
+          head={['Symbol', 'Meaning']}
+          rows={[
+            [<Code>i⃗ = (i_1,…,i_n)</Code>, <>the <strong>iteration vector</strong> — the current values of the <Code>n</Code> nested loop counters, from outermost (<Code>i_1</Code>) to innermost (<Code>i_n</Code>).</>],
+            [<><Code>L_k</Code>, <Code>n_k</Code></>, <>the <Code>k</Code>-th loop (counting from the outside) and its <strong>trip count</strong> — how many iterations <Code>L_k</Code> runs.</>],
+            [<Code>l</Code>, <>the <strong>cache-block size</strong> in array elements: one memory load brings in <Code>l</Code> consecutive elements at once.</>],
+            [<><Code>A</Code>, <Code>c⃗</Code></>, <>the <strong>coefficient matrix</strong> and <strong>offset vector</strong> of an access, written <Code>x[A·i⃗ + c⃗]</Code>. Column <Code>k</Code> of <Code>A</Code> says how loop <Code>i_k</Code> moves the subscript.</>],
+            [<><Code>s</Code>, <Code>a_sk</Code></>, <>row <Code>s</Code> is <Code>A</Code>'s <strong>contiguous dimension</strong> (the last index, for row-major storage); <Code>a_sk</Code> is its entry in column <Code>k</Code> — the stride loop <Code>k</Code> takes through memory.</>],
+            [<><Code>d⃗</Code>, <Code>d_k</Code></>, <>the <strong>distance vector</strong> <Code>i⃗₂ − i⃗₁</Code> between two iterations that touch the <em>same</em> element; <Code>d_k</Code> is its <Code>k</Code>-th entry — the gap, counted in iterations of loop <Code>k</Code>.</>],
+            [<><Code>Rᶻ_k</Code>, <Code>Rʳ_k</Code>, <Code>R_k</Code></>, <>the <strong>temporal</strong>, <strong>spatial</strong>, and <strong>overall</strong> reuse factors of loop <Code>k</Code> — how many accesses one loaded element (temporal) or block (spatial) serves over a run of <Code>L_k</Code>. Bigger factor ⇒ fewer memory loads.</>],
+            [<Code>F_k</Code>, <>the <strong>data footprint</strong> from loop <Code>k</Code> inward — an estimate of how many cache blocks that part of the nest loads.</>],
+            [<><Code>Wᶻ·ᵍ</Code>, <Code>Wʳ·ᵍ</Code></>, <>the <strong>group</strong> versions of the temporal / spatial reuse factors, used when several references share one matrix <Code>A</Code> (see the <em>Group reuse</em> tab).</>],
+          ]}
+        />
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader className="pb-2">
         <CardTitle className="text-base">The affine access model</CardTitle>
       </CardHeader>
       <CardContent>
@@ -424,6 +452,14 @@ const QuantSection: React.FC = () => (
           <Mat label={<>i⃗</>} rows={[['i'], ['j']]} />
           <Mat label={<>c⃗</>} rows={[[0], [1]]} />
         </div>
+        <p className="text-sm mt-2 mb-1">
+          Two iterations <Code>i⃗₁</Code> and <Code>i⃗₂</Code> read the <strong>same</strong> element when{' '}
+          <Code>A·i⃗₁ + c⃗ = A·i⃗₂ + c⃗</Code>, i.e. <Code>A·d⃗ = 0⃗</Code> for the <strong>distance vector</strong>{' '}
+          <Code>d⃗ = i⃗₂ − i⃗₁</Code> (this is where <Code>d⃗</Code> comes from). A reference therefore has{' '}
+          <strong>temporal locality</strong> along loop <Code>k</Code> exactly when some non-zero <Code>d⃗</Code> solves
+          it — which happens iff <Code>A</Code>'s <Code>k</Code>-th column is all zeros, i.e. loop <Code>k</Code>'s
+          counter never appears in the subscript.
+        </p>
         <Formula>{`Temporal locality with distance d⃗ ≠ 0  ⟺  A·d⃗ = 0⃗
 (equivalently: some column of A is all zeros ⇒ that loop's variable is absent)`}</Formula>
       </CardContent>
@@ -448,11 +484,27 @@ const QuantSection: React.FC = () => (
       </CardHeader>
       <CardContent>
         <div className="text-sm space-y-1.5 mb-3">
-          <div><strong>Temporal reuse factor</strong> <Code>Rᶻ_k = n_k</Code> if the k-th column of A is all zeros, else <Code>1</Code> — the number of reuses of an element over one full run of loop <Code>L_k</Code>.</div>
-          <div><strong>Spatial reuse factor</strong> <Code>Rʳ_k = max(1, l/a_sk)</Code> if the k-th column has a non-zero only in the most-significant (contiguous) row s (coefficient <Code>a_sk</Code>), else <Code>1</Code>. Here <Code>l</Code> = cache-block size in words.</div>
-          <div><strong>Overall</strong> <Code>R_k = Rᶻ_k</Code> if <Code>Rᶻ_k &gt; 1</Code>, else <Code>Rʳ_k</Code>.</div>
-          <div><strong>Data footprint</strong> <Code>F_k = ∏(i=k..n) n_i / R_i</Code> — a rough count of cache blocks loaded (worst case when every <Code>R = 1</Code>).</div>
+          <div><strong>Temporal reuse factor</strong> <Code>Rᶻ_k = n_k</Code> if the <Code>k</Code>-th column of <Code>A</Code> is all zeros, else <Code>1</Code> — i.e. if loop <Code>L_k</Code> doesn't touch this reference, one loaded element is reused on all <Code>n_k</Code> of its iterations; otherwise no temporal reuse (<Code>1</Code>).</div>
+          <div><strong>Spatial reuse factor</strong> <Code>Rʳ_k = max(1, l/a_sk)</Code> if the <Code>k</Code>-th column has its only non-zero in the contiguous row <Code>s</Code> (with coefficient <Code>a_sk</Code>), else <Code>1</Code> — a stride-<Code>a_sk</Code> walk lands <Code>l/a_sk</Code> touched elements in each loaded block of <Code>l</Code> words.</div>
+          <div><strong>Overall reuse factor</strong> <Code>R_k = Rᶻ_k</Code> if <Code>Rᶻ_k &gt; 1</Code> (temporal reuse dominates when present), else <Code>R_k = Rʳ_k</Code>.</div>
+          <div>
+            <strong>Data footprint</strong> <Code>F_k = ∏(p=k..n) n_p / R_p</Code>. The letter <Code>p</Code> here is just a{' '}
+            <em>running index over loop positions</em>, not a loop called <Code>p</Code>: it walks from the current loop{' '}
+            <Code>L_k</Code> down to the innermost loop <Code>L_n</Code>, and for each position <Code>p</Code> you multiply
+            in that loop's trip count <Code>n_p</Code> divided by its own overall reuse factor <Code>R_p</Code> (the{' '}
+            <Code>R</Code> from the line above). So <Code>F_k</Code> multiplies <Code>n / R</Code> across loop <Code>k</Code>{' '}
+            and every loop nested inside it — an estimate of the cache blocks that part of the nest loads. The worst case
+            is when every <Code>R_p = 1</Code> (no reuse anywhere), giving <Code>F_k = n_k · n_{'{k+1}'} · … · n_n</Code>,
+            i.e. one block per access.
+          </div>
         </div>
+        <Panel className="text-sm leading-relaxed mb-3">
+          <strong>Read it off the table below</strong> (original nest, <Code>l = 4</Code>) for <Code>x[i][j]</Code>, where{' '}
+          <Code>R_i = 1</Code> (strided outer) and <Code>R_j = 4</Code> (sequential inner):
+          <Formula>{`F_j = n_j / R_j                 = m / 4        (innermost loop only)
+F_i = (n_i / R_i) · (n_j / R_j) = (n/1)·(m/4) = n·m / 4`}</Formula>
+          exactly the <Code>Fᵢ = n·m/4</Code>, <Code>Fⱼ = m/4</Code> entries in the <Code>x[i][j]</Code> row.
+        </Panel>
         <p className="text-sm mb-3">With <Code>l = 4</Code> for the example (compare original vs tiled):</p>
         <ReuseFactorTable />
       </CardContent>
@@ -489,6 +541,13 @@ const GroupSection: React.FC = () => (
         <CardTitle className="text-base">Temporal group-reuse factor Wᶻ·ᵍ</CardTitle>
       </CardHeader>
       <CardContent>
+        <p className="text-sm mb-2">
+          <Code>Wᶻ·ᵍ</Code> is the <strong>temporal reuse factor between the two references</strong> (superscript{' '}
+          <strong>z</strong> = temporal, <strong>g</strong> = group). It is driven by their distance vector{' '}
+          <Code>d⃗</Code> from <Code>A·d⃗ = c⃗₁ − c⃗₂</Code> above, and <Code>d_k</Code> is that vector's <Code>k</Code>-th
+          component — how many iterations of loop <Code>L_k</Code> pass before the second reference reuses what the first
+          one loaded.
+        </p>
         <Table
           head={['case', 'meaning', 'factor']}
           rows={[
