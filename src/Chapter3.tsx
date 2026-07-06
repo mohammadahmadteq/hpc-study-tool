@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card'
+import { Button } from './components/ui/button'
 import { cn } from './lib/utils'
 import {
   Code,
@@ -10,6 +11,7 @@ import {
   Panel,
   Good,
   Bad,
+  Tag,
   Stepper,
   FlowGraph,
   edgeKey,
@@ -195,6 +197,454 @@ const Lattice: React.FC<{
 /* 1-D iteration-space dependence graph  (i = 2 … 9) */
 const iterLineNodes: GNode[] = [2, 3, 4, 5, 6, 7, 8, 9].map((v, k) => ({ id: `i${v}`, x: 28 + k * 42, y: 30, label: String(v), r: 13 }))
 const iterLineEdges: GEdge[] = [2, 3, 4, 5, 6, 7, 8].map((v) => ({ from: `i${v}`, to: `i${v + 1}` }))
+
+/* ------------------------------------------------------------------ *
+ *  Interactive: loop-carried vs loop-independent dependences.
+ *  One code template with an adjustable read offset d:
+ *      s1: x[i] = y[i] + 1;      s2: a[i] = x[i-d] + 2;
+ *  d = 0 → arrow stays inside the iteration (δ∞, loop-independent);
+ *  d ≥ 1 → arrow crosses d iteration boundaries (δ(d), loop-carried).
+ * ------------------------------------------------------------------ */
+
+const CV_N = 6
+const CV_TOTAL = 2 * CV_N
+/* emerald = independent; rose / indigo / amber = the (up to 3) carried chains */
+const CV_COLORS = { e: '#10b981', c0: '#f43f5e', c1: '#6366f1', c2: '#f59e0b' } as const
+type CvColorId = keyof typeof CV_COLORS
+const cvChainId = (src: number, d: number): CvColorId => (d === 0 ? 'e' : (`c${(src - 1) % d}` as CvColorId))
+
+const CarriedExplorer: React.FC = () => {
+  const [d, setD] = useState(1) // how far back s2 reads: x[i-d]
+  const [t, setT] = useState(-1) // index of last executed instance, -1 = not started
+  const [sel, setSel] = useState<number | null>(null) // clicked iteration column
+
+  const execIdx = (i: number, s: 0 | 1) => (i - 1) * 2 + s // program order: s1[1], s2[1], s1[2], …
+  const done = (i: number, s: 0 | 1) => t >= execIdx(i, s)
+  const curIter = t >= 0 ? Math.floor(t / 2) + 1 : null
+  const curStmt: 0 | 1 | null = t >= 0 ? ((t % 2) as 0 | 1) : null
+
+  const pickD = (nd: number) => {
+    setD(nd)
+    setT(-1)
+    setSel(null)
+  }
+  const step = (dt: number) => {
+    setSel(null)
+    setT((p) => Math.max(-1, Math.min(CV_TOTAL - 1, p + dt)))
+  }
+
+  /* flow-dependence edges  s1[j−d] → s2[j] */
+  const edges: { src: number; snk: number; id: CvColorId }[] = []
+  for (let j = 1; j <= CV_N; j++) if (j - d >= 1) edges.push({ src: j - d, snk: j, id: cvChainId(j - d, d) })
+
+  /* geometry */
+  const mL = 64
+  const gapX = 62
+  const colW = 50
+  const X = (i: number) => mL + (i - 1) * gapX + colW / 2
+  const S1Y = 62
+  const S2Y = 126
+  const R = 13
+  const colT = 28
+  const colH = 122
+  const bandY = 176
+  const cellW = 34
+  const cellH = 20
+  const W = mL + (CV_N - 1) * gapX + colW + 8
+  const H = bandY + cellH + 10
+
+  const preRead = curStmt === 1 && curIter != null && curIter - d < 1
+  const colDim = (i: number) => (sel != null && !(i === sel || i === sel - d || i === sel + d) ? 0.35 : 1)
+
+  /* narration panel content */
+  let narrTitle: string
+  let narration: React.ReactNode
+  if (sel != null) {
+    narrTitle = `Iteration i = ${sel}`
+    if (d === 0) {
+      narration = (
+        <>
+          Self-contained: <Code>s1[{sel}]</Code> writes <Code>x[{sel}]</Code> and <Code>s2[{sel}]</Code> reads it back{' '}
+          <strong>before the iteration ends</strong>. No arrow connects this column to any other — iteration {sel}{' '}
+          neither waits for another iteration nor makes one wait.
+        </>
+      )
+    } else {
+      const src = sel - d
+      const snk = sel + d
+      narration = (
+        <>
+          {src >= 1 ? (
+            <>
+              <Code>s2[{sel}]</Code> needs <Code>x[{src}]</Code> from iteration {src} → this iteration{' '}
+              <Bad>cannot run</Bad> before iteration {src}.
+            </>
+          ) : (
+            <>
+              <Code>s2[{sel}]</Code> reads <Code>x[{src}]</Code>, written <em>before</em> the loop → no constraint from
+              inside the loop.
+            </>
+          )}{' '}
+          {snk <= CV_N ? (
+            <>
+              And its own write <Code>x[{sel}]</Code> is consumed by iteration {snk} → iteration {snk}{' '}
+              <Bad>must wait</Bad> for this one.
+            </>
+          ) : (
+            <>
+              Its own write <Code>x[{sel}]</Code> is never read inside the loop.
+            </>
+          )}
+        </>
+      )
+    }
+  } else if (t < 0) {
+    narrTitle = 'Execution trace'
+    narration = (
+      <>
+        Nothing has executed yet — the arrows show the compile-time dependence structure. Press <strong>step →</strong>{' '}
+        to run the {CV_TOTAL} instances in program order (<Code>s1[1]</Code>, <Code>s2[1]</Code>, <Code>s1[2]</Code>, …)
+        and watch each dependence become real the moment its read executes. Or click a column.
+      </>
+    )
+  } else {
+    const i = curIter as number
+    narrTitle = `Instance ${t + 1} of ${CV_TOTAL}: ${curStmt === 0 ? 's1' : 's2'}[${i}]`
+    if (curStmt === 0) {
+      narration = (
+        <>
+          <Code>s1[{i}]</Code> writes <Code>x[{i}]</Code> into memory.{' '}
+          {d === 0 ? (
+            <>
+              Its reader, <Code>s2[{i}]</Code>, is the <strong>very next instance in this same iteration</strong>.
+            </>
+          ) : i + d <= CV_N ? (
+            <>
+              Its reader, <Code>s2[{i + d}]</Code>, only runs <strong>{d} iteration{d > 1 ? 's' : ''} later</strong> —
+              until then the value has to sit in memory and survive the iteration boundary.
+            </>
+          ) : (
+            <>Nothing inside the loop ever reads it — its reader would be iteration {i + d}, past the last one.</>
+          )}
+        </>
+      )
+    } else {
+      const k = i - d
+      narration =
+        k >= 1 ? (
+          d === 0 ? (
+            <>
+              <Code>s2[{i}]</Code> reads <Code>x[{i}]</Code> — written an instant ago by <Code>s1[{i}]</Code>, in the{' '}
+              <strong>same iteration</strong>. Producer and consumer share one iteration ⇒{' '}
+              <strong>loop-independent</strong>, δ<sub>∞</sub>.
+            </>
+          ) : (
+            <>
+              <Code>s2[{i}]</Code> reads <Code>x[{k}]</Code> — written by <Code>s1[{k}]</Code> back in iteration {k}.
+              The value crossed {d} iteration boundar{d > 1 ? 'ies' : 'y'} ⇒ <strong>loop-carried</strong>, distance ({d}).
+            </>
+          )
+        ) : (
+          <>
+            <Code>s2[{i}]</Code> reads <Code>x[{k}]</Code> — a value from <em>before</em> the loop, so no dependence
+            arises inside the loop. (The first {d} iteration{d > 1 ? 's have' : ' has'} no incoming arrow.)
+          </>
+        )
+    }
+  }
+
+  const parallel: React.ReactNode =
+    d === 0 ? (
+      <>
+        Every arrow stays <strong>inside its own column</strong>: no iteration needs a value from another one. All{' '}
+        {CV_N} iterations could run <Good>simultaneously</Good> — only the s1-before-s2 order <em>inside</em> each
+        iteration must be kept.
+      </>
+    ) : d === 1 ? (
+      <>
+        Every iteration feeds the next: one chain 1 → 2 → … → {CV_N} threads through the whole loop, so the iterations
+        must run <Bad>strictly one after another</Bad>. This single dependence serialises the loop.
+      </>
+    ) : (
+      <>
+        Iteration i feeds iteration i+{d}, so the iterations fall apart into <strong>{d} independent chains</strong>{' '}
+        (the {d} colours). Order only matters <em>within</em> a chain → the {d} chains can run <Good>in parallel</Good>.
+        Larger distance = more loop-level parallelism.
+      </>
+    )
+
+  return (
+    <div>
+      <Pre>{`for (i = 1; i <= ${CV_N}; i++) {
+  s1: x[i] = y[i] + 1;
+  s2: a[i] = x[${d === 0 ? 'i' : `i-${d}`}] + 2;
+}`}</Pre>
+
+      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+        <span className="text-xs text-muted-foreground mr-1">s2 reads…</span>
+        {[0, 1, 2, 3].map((k) => (
+          <button
+            key={k}
+            onClick={() => pickD(k)}
+            className={cn(
+              'text-[12px] font-mono px-2.5 py-1 rounded-full border transition-colors',
+              d === k
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:bg-muted'
+            )}
+          >
+            x[{k === 0 ? 'i' : `i−${k}`}]
+          </button>
+        ))}
+        <span className="text-xs text-muted-foreground ml-1">
+          {d === 0 ? '→ written in the same iteration' : `→ written ${d} iteration${d > 1 ? 's' : ''} earlier`}
+        </span>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full mx-auto block select-none" style={{ height: 'auto', maxWidth: 470 }}>
+        <defs>
+          {(Object.keys(CV_COLORS) as CvColorId[]).map((id) => (
+            <marker key={id} id={`cvar-${id}`} markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L7,3 L0,6 Z" fill={CV_COLORS[id]} />
+            </marker>
+          ))}
+        </defs>
+
+        {/* iteration columns */}
+        {Array.from({ length: CV_N }, (_, idx) => {
+          const i = idx + 1
+          const isSel = sel === i
+          return (
+            <g key={`col${i}`} opacity={colDim(i)}>
+              <rect
+                x={X(i) - colW / 2}
+                y={colT}
+                width={colW}
+                height={colH}
+                rx={9}
+                fill={curIter === i ? 'var(--color-primary)' : 'var(--color-muted)'}
+                fillOpacity={curIter === i ? 0.09 : 0.45}
+                stroke={isSel ? 'var(--color-primary)' : 'var(--color-border)'}
+                strokeWidth={isSel ? 2 : 1.2}
+              />
+              <text
+                x={X(i)}
+                y={17}
+                textAnchor="middle"
+                fontSize="10.5"
+                fontWeight={600}
+                fill={isSel ? 'var(--color-primary)' : 'var(--color-muted-foreground)'}
+              >
+                i = {i}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* memory band: the x[] array */}
+        <text x={8} y={bandY - 6} fontSize="9" fill="var(--color-muted-foreground)">
+          array x:
+        </text>
+        {d > 0 && (
+          <g>
+            <rect
+              x={8}
+              y={bandY}
+              width={mL - 22}
+              height={cellH}
+              rx={4}
+              fill="var(--color-muted)"
+              stroke={preRead ? 'var(--color-primary)' : 'var(--color-muted-foreground)'}
+              strokeWidth={preRead ? 2 : 1}
+              strokeDasharray="3 2"
+            />
+            <text
+              x={8 + (mL - 22) / 2}
+              y={bandY + cellH / 2 + 1}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="8.5"
+              fill="var(--color-muted-foreground)"
+            >
+              old
+            </text>
+          </g>
+        )}
+        {Array.from({ length: CV_N }, (_, idx) => {
+          const k = idx + 1
+          const written = done(k, 0)
+          const hot = (curStmt === 0 && curIter === k) || (curStmt === 1 && curIter != null && curIter - d === k)
+          return (
+            <g key={`cell${k}`}>
+              <rect
+                x={X(k) - cellW / 2}
+                y={bandY}
+                width={cellW}
+                height={cellH}
+                rx={4}
+                fill={written ? CV_COLORS[cvChainId(k, d)] : 'var(--color-card)'}
+                fillOpacity={written ? 0.25 : 1}
+                stroke={hot ? 'var(--color-primary)' : 'var(--color-muted-foreground)'}
+                strokeWidth={hot ? 2 : 1}
+              />
+              <text
+                x={X(k)}
+                y={bandY + cellH / 2 + 1}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="9.5"
+                fontFamily="ui-monospace, monospace"
+                fill="var(--color-foreground)"
+              >
+                x[{k}]
+              </text>
+            </g>
+          )
+        })}
+
+        {/* dependence arrows  s1[src] → s2[snk] */}
+        {edges.map(({ src, snk, id }) => {
+          const x1 = X(src)
+          const x2 = X(snk)
+          const dx = x2 - x1
+          const dy = S2Y - S1Y
+          const L = Math.hypot(dx, dy)
+          const ux = dx / L
+          const uy = dy / L
+          const cur = t === execIdx(snk, 1)
+          const dim = sel != null && sel !== src && sel !== snk
+          const op = dim ? 0.12 : t === -1 ? 0.9 : cur ? 1 : done(snk, 1) ? 0.95 : 0.3
+          return (
+            <line
+              key={`${src}-${snk}`}
+              x1={x1 + ux * (R + 2)}
+              y1={S1Y + uy * (R + 2)}
+              x2={x2 - ux * (R + 7)}
+              y2={S2Y - uy * (R + 7)}
+              stroke={CV_COLORS[id]}
+              strokeWidth={cur || (sel != null && !dim) ? 2.8 : 1.8}
+              opacity={op}
+              markerEnd={`url(#cvar-${id})`}
+            />
+          )
+        })}
+
+        {/* instruction instances */}
+        {Array.from({ length: CV_N }, (_, idx) => {
+          const i = idx + 1
+          return ([0, 1] as const).map((s) => {
+            const y = s === 0 ? S1Y : S2Y
+            const ex = done(i, s)
+            const cur = t === execIdx(i, s)
+            return (
+              <g key={`dot${i}-${s}`} opacity={colDim(i)}>
+                {cur && <circle cx={X(i)} cy={y} r={R + 3.5} fill="none" stroke="var(--color-primary)" strokeWidth={1.5} opacity={0.9} />}
+                <circle
+                  cx={X(i)}
+                  cy={y}
+                  r={R}
+                  fill={ex ? 'var(--color-primary)' : 'var(--color-card)'}
+                  stroke={ex ? 'var(--color-primary)' : 'var(--color-foreground)'}
+                  strokeWidth={1.6}
+                />
+                <text
+                  x={X(i)}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="11"
+                  fontWeight={600}
+                  fill={ex ? 'var(--color-primary-foreground)' : 'var(--color-foreground)'}
+                >
+                  {s === 0 ? 's₁' : 's₂'}
+                </text>
+              </g>
+            )
+          })
+        })}
+
+        {/* click targets (one per column) */}
+        {Array.from({ length: CV_N }, (_, idx) => {
+          const i = idx + 1
+          return (
+            <rect
+              key={`hit${i}`}
+              x={X(i) - colW / 2 - 5}
+              y={8}
+              width={colW + 10}
+              height={colT + colH - 4}
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setSel((s) => (s === i ? null : i))}
+            />
+          )
+        })}
+      </svg>
+      <p className="text-center text-xs text-muted-foreground mt-1">
+        arrow inside a column = <strong>loop-independent</strong> · arrow crossing columns = <strong>loop-carried</strong>{' '}
+        (columns jumped = distance) · click a column
+      </p>
+
+      {d >= 2 && (
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground mt-1">
+          {Array.from({ length: d }, (_, c) => (
+            <span key={c} className="inline-flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: CV_COLORS[`c${c}` as CvColorId] }} />
+              chain {c + 1}: i ={' '}
+              {Array.from({ length: CV_N }, (_, k) => k + 1)
+                .filter((i) => (i - 1) % d === c)
+                .join(' → ')}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <Button variant="outline" size="sm" onClick={() => { setT(-1); setSel(null) }} disabled={t < 0}>
+          ⟲ reset
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => step(-1)} disabled={t < 0}>
+          ← back
+        </Button>
+        <Button size="sm" onClick={() => step(1)} disabled={t >= CV_TOTAL - 1}>
+          step →
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setSel(null); setT(CV_TOTAL - 1) }} disabled={t >= CV_TOTAL - 1}>
+          run all ⇥
+        </Button>
+        <span className="text-xs text-muted-foreground ml-auto">
+          {t + 1} / {CV_TOTAL} instances executed
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start mt-3">
+        <Panel className="min-h-[104px]">
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">{narrTitle}</div>
+          <div className="text-[13px] leading-relaxed">{narration}</div>
+        </Panel>
+        <Panel className="min-h-[104px]">
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">
+            Classification for s2 reading {d === 0 ? 'x[i]' : `x[i−${d}]`}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            <Dep k="t">δᵗ flow</Dep>
+            <Tag>d = ({d})</Tag>
+            <Tag>θ = ({d === 0 ? '=' : '<'})</Tag>
+            {d === 0 ? (
+              <Tag tone="good">level ∞ — loop-independent</Tag>
+            ) : (
+              <Tag tone="warn">level 1 — carried by the i-loop</Tag>
+            )}
+          </div>
+          <div className="text-[13px] font-mono mb-2">
+            s1 δᵗ<sub>{d === 0 ? '∞' : `(${d})`}</sub> s2
+          </div>
+          <div className="text-[13px] leading-relaxed">{parallel}</div>
+        </Panel>
+      </div>
+    </div>
+  )
+}
 
 /* ------------------------------------------------------------------ *
  *  Steppers
@@ -545,6 +995,22 @@ const LoopsSection: React.FC = () => (
             ['loop-carried', 'the instances are in different iterations'],
           ]}
         />
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Interactive — loop-carried vs loop-independent</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm mb-2">
+          The <em>only</em> thing separating the two terms is <strong>where the reading instance lives</strong>: the
+          same iteration, or a later one. Below, each column is one iteration <Code>i</Code> holding its two instances{' '}
+          <Code>s1[i]</Code> and <Code>s2[i]</Code>; each arrow is the flow dependence "write of <Code>x</Code> → read
+          of <Code>x</Code>". Pick how far back <Code>s2</Code> reaches, then step through the execution and watch when
+          each value is produced and consumed.
+        </p>
+        <CarriedExplorer />
       </CardContent>
     </Card>
 
