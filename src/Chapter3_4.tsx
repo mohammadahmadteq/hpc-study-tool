@@ -338,81 +338,255 @@ type DirKey = '*' | '<' | '=' | '>'
 interface ExtremeCase {
   key: DirKey
   title: string
-  extra?: string
-  rows: React.ReactNode[][]
-  interval: string
-  dep: boolean
-  verdict: React.ReactNode
+  steps: StepPanel[]
 }
 const extremeCases: ExtremeCase[] = [
   {
     key: '*',
-    title: 'arbitrary direction (∗)',
-    rows: [
-      ['original  −m + iᵈ − iᵘ', '−m + iᵈ − iᵘ', '−m + iᵈ − iᵘ'],
-      ['eliminate iᵘ', '−m + iᵈ − 9', '−m + iᵈ − 0'],
-      ['eliminate iᵈ', '−m − 9', '−m + 9'],
-      ['eliminate m', '−∞', '8'],
+    title: 'arbitrary direction (∗) — no constraint, pure loop limits',
+    steps: [
+      {
+        title: '0 · Read off each coefficient and decide which limit to plug',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              The expression is <Code>E = −m + iᵈ − iᵘ</Code>. Before eliminating anything, list each variable, its
+              coefficient sign, and (from the sign rule) which limit it contributes to which bound:
+            </p>
+            <Table
+              head={['variable', 'coefficient', 'range', 'for the lower limit plug…', 'for the upper limit plug…']}
+              rows={[
+                [<Code>m</Code>, '−1 (negative)', '[1, ∞]', 'its max: ∞', 'its min: 1'],
+                [<Code>iᵈ</Code>, '+1 (positive)', '[0, 9]', 'its min: 0', 'its max: 9'],
+                [<Code>iᵘ</Code>, '−1 (negative)', '[0, 9]', 'its max: 9', 'its min: 0'],
+              ]}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              That table already <em>is</em> the whole test — the following steps just substitute one variable at a time
+              so you can see the expression shrink.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '1 · Eliminate iᵘ  (coefficient −1)',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              <Code>iᵘ</Code> appears as <Code>−iᵘ</Code>. To make <Code>E</Code> as <strong>small</strong> as possible,
+              subtract the <strong>biggest</strong> <Code>iᵘ</Code> (= 9); to make it as <strong>big</strong> as possible,
+              subtract the <strong>smallest</strong> (= 0):
+            </p>
+            <Formula>{`lower:  −m + iᵈ − 9        (plugged iᵘ = 9)
+upper:  −m + iᵈ − 0        (plugged iᵘ = 0)`}</Formula>
+          </>
+        ),
+      },
+      {
+        title: '2 · Eliminate iᵈ  (coefficient +1)',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              <Code>iᵈ</Code> appears with a <strong>positive</strong> sign, so it's the other way round: small value for
+              the lower limit, big value for the upper limit:
+            </p>
+            <Formula>{`lower:  −m + 0 − 9 = −m − 9    (plugged iᵈ = 0)
+upper:  −m + 9 − 0 = −m + 9    (plugged iᵈ = 9)`}</Formula>
+          </>
+        ),
+      },
+      {
+        title: '3 · Eliminate m  (coefficient −1, range [1, ∞])',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              <Code>m</Code> is negative in <Code>E</Code>, and its range is unbounded above — so the lower limit runs
+              away to <Code>−∞</Code>, while the upper limit uses the smallest <Code>m = 1</Code>:
+            </p>
+            <Formula>{`lower:  −∞ − 9  = −∞          (m → ∞)
+upper:  −1 + 9  = 8            (m = 1)
+
+E ∈ [−∞, 8]`}</Formula>
+          </>
+        ),
+      },
+      {
+        title: '4 · Verdict: is c in the interval?',
+        body: (
+          <Panel className="text-sm leading-relaxed">
+            The equation demands <Code>E = c = 0</Code>, and <Code>0 ∈ [−∞, 8]</Code> — a dependence{' '}
+            <Bad>cannot be excluded</Bad>. The interval is too loose because it allowed <em>any</em> relation between{' '}
+            <Code>iᵈ</Code> and <Code>iᵘ</Code>. Next: constrain the direction and watch the interval tighten.
+          </Panel>
+        ),
+      },
     ],
-    interval: '[−∞, 8]',
-    dep: true,
-    verdict: (
-      <>
-        Since <Code>c ≡ 0 ∈ [−∞, 8]</Code>, a dependence <Bad>cannot be excluded</Bad> in general — refine by direction.
-      </>
-    ),
   },
   {
     key: '<',
-    title: 'direction <  (iᵈ < iᵘ ⇔ iᵈ ≤ iᵘ − 1)',
-    extra: 'use iᵘ ≥ iᵈ + 1 when eliminating iᵘ',
-    rows: [
-      ['original  −m + iᵈ − iᵘ', '−m + iᵈ − iᵘ', '−m + iᵈ − iᵘ'],
-      ['eliminate iᵘ', '−m + iᵈ − 9', '−m + iᵈ − (iᵈ+1) = −m − 1'],
-      ['eliminate iᵈ', '−m − 9', '−m − 1'],
-      ['eliminate m', '−∞', '−2'],
+    title: 'direction <  (iᵈ < iᵘ)',
+    steps: [
+      {
+        title: '0 · Turn the direction into an inequality — this is the new bound',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              Over integers, <Code>iᵈ &lt; iᵘ</Code> means <Code>iᵘ ≥ iᵈ + 1</Code> (equivalently{' '}
+              <Code>iᵈ ≤ iᵘ − 1</Code>). So <Code>iᵘ</Code> now has <strong>two lower limits</strong>:
+            </p>
+            <Table
+              head={['lower limit of iᵘ', 'source', 'which is tighter?']}
+              rows={[
+                [<Code>0</Code>, 'loop limit', ''],
+                [<Code>iᵈ + 1</Code>, 'direction constraint', <>tighter — since <Code>iᵈ ≥ 0</Code>, we have <Code>iᵈ + 1 ≥ 1 &gt; 0</Code></>],
+              ]}
+            />
+            <p className="text-sm mt-1">
+              <strong>Rule:</strong> a variable can pick up extra limits from a direction constraint; always use the{' '}
+              <em>tightest</em> one, even if it still contains another variable. Eliminate the constrained variable{' '}
+              <em>first</em> — the leftover <Code>iᵈ</Code> terms then cancel.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '1 · Eliminate iᵘ — the constraint replaces one loop limit',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              For the <strong>upper</strong> limit we need the smallest <Code>iᵘ</Code>, which is now{' '}
+              <Code>iᵈ + 1</Code> instead of 0. For the <strong>lower</strong> limit we need the largest <Code>iᵘ</Code> —
+              the direction adds no upper bound on <Code>iᵘ</Code>, so the loop limit 9 still applies:
+            </p>
+            <Formula>{`lower:  −m + iᵈ − 9                       (iᵘ = 9, unchanged)
+upper:  −m + iᵈ − (iᵈ + 1) = −m − 1      (iᵘ = iᵈ + 1)`}</Formula>
+            <Panel className="text-sm leading-relaxed mt-1">
+              Note the payoff: <Code>+iᵈ</Code> and <Code>−iᵈ</Code> <strong>cancel</strong> in the upper limit. This is
+              why the constrained variable is eliminated first — the substituted bound carries the other variable with the
+              opposite sign.
+            </Panel>
+          </>
+        ),
+      },
+      {
+        title: '2 · Eliminate iᵈ, then m',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              The upper limit no longer contains <Code>iᵈ</Code>. In the lower limit, <Code>iᵈ</Code> is positive → plug
+              its minimum 0. Finally <Code>m</Code> as before (max ∞ for lower, min 1 for upper):
+            </p>
+            <Formula>{`lower:  −m + 0 − 9 = −m − 9   →   −∞         (m → ∞)
+upper:  −m − 1            →   −1 − 1 = −2   (m = 1)
+
+E ∈ [−∞, −2]`}</Formula>
+          </>
+        ),
+      },
+      {
+        title: '3 · Verdict',
+        body: (
+          <Panel className="text-sm leading-relaxed">
+            <Code>c = 0 ∉ [−∞, −2]</Code> ⇒ <Good>no dependence with direction &lt;</Good>. Intuitively: with{' '}
+            <Code>iᵈ &lt; iᵘ</Code> the term <Code>iᵈ − iᵘ</Code> is at most −1, and <Code>−m</Code> is at most −1, so{' '}
+            <Code>E</Code> can never climb back up to 0.
+          </Panel>
+        ),
+      },
     ],
-    interval: '[−∞, −2]',
-    dep: false,
-    verdict: (
-      <>
-        <Code>c ≡ 0 ∉ [−∞, −2]</Code> ⇒ <Good>no dependence with direction &lt;</Good>.
-      </>
-    ),
   },
   {
     key: '=',
     title: 'direction =  (iᵈ = iᵘ)',
-    extra: 'the equation collapses to −m = 0',
-    rows: [
-      ['simplified  −m', '−m', '−m'],
-      ['eliminate m  (1 ≤ m ≤ ∞)', '−∞', '−1'],
+    steps: [
+      {
+        title: '0 · An equality constraint is even better: substitute, don’t bound',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              <Code>=</Code> is the strongest constraint of the three: it doesn't tighten a limit, it removes both
+              variables outright. Setting <Code>iᵈ = iᵘ</Code> makes <Code>iᵈ − iᵘ = 0</Code>:
+            </p>
+            <Formula>{`E = −m + iᵈ − iᵘ  =  −m`}</Formula>
+          </>
+        ),
+      },
+      {
+        title: '1 · Eliminate the only remaining variable, m',
+        body: (
+          <Formula>{`lower:  −m  →  −∞     (m → ∞)
+upper:  −m  →  −1     (m = 1)
+
+E ∈ [−∞, −1]`}</Formula>
+        ),
+      },
+      {
+        title: '2 · Verdict',
+        body: (
+          <Panel className="text-sm leading-relaxed">
+            <Code>c = 0 ∉ [−∞, −1]</Code> ⇒ <Good>no dependence with direction =</Good>. Reading and writing the same
+            iteration's element would need <Code>m = 0</Code>, but the guard forces <Code>m ≥ 1</Code>.
+          </Panel>
+        ),
+      },
     ],
-    interval: '[−∞, −1]',
-    dep: false,
-    verdict: (
-      <>
-        <Code>c ≡ 0 ∉ [−∞, −1]</Code> ⇒ <Good>no dependence with direction =</Good>.
-      </>
-    ),
   },
   {
     key: '>',
-    title: 'direction >  (iᵈ > iᵘ ⇔ iᵘ ≤ iᵈ − 1)',
-    rows: [
-      ['original  −m + iᵈ − iᵘ', '−m + iᵈ − iᵘ', '−m + iᵈ − iᵘ'],
-      ['eliminate iᵘ (iᵘ = 0)', '−m + iᵈ − (iᵈ−1) = −m − 1', '−m + iᵈ'],
-      ['eliminate iᵈ', '−m − 1', '−m + 9'],
-      ['eliminate m', '−∞', '8'],
+    title: 'direction >  (iᵈ > iᵘ)',
+    steps: [
+      {
+        title: '0 · Turn the direction into an inequality',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              <Code>iᵈ &gt; iᵘ</Code> over integers means <Code>iᵘ ≤ iᵈ − 1</Code>. This time <Code>iᵘ</Code> gets a
+              second <strong>upper</strong> limit:
+            </p>
+            <Table
+              head={['upper limit of iᵘ', 'source', 'which is tighter?']}
+              rows={[
+                [<Code>9</Code>, 'loop limit', ''],
+                [<Code>iᵈ − 1</Code>, 'direction constraint', <>tighter — since <Code>iᵈ ≤ 9</Code>, we have <Code>iᵈ − 1 ≤ 8 &lt; 9</Code></>],
+              ]}
+            />
+          </>
+        ),
+      },
+      {
+        title: '1 · Eliminate iᵘ',
+        body: (
+          <>
+            <p className="text-sm mb-1">
+              <Code>iᵘ</Code> is negative in <Code>E</Code>, so the <strong>lower</strong> limit wants the largest{' '}
+              <Code>iᵘ</Code> — now <Code>iᵈ − 1</Code> instead of 9. The <strong>upper</strong> limit wants the smallest{' '}
+              <Code>iᵘ</Code>; the constraint adds no lower bound, so the loop limit 0 stays:
+            </p>
+            <Formula>{`lower:  −m + iᵈ − (iᵈ − 1) = −m + 1     (iᵘ = iᵈ − 1, iᵈ cancels)
+upper:  −m + iᵈ − 0                     (iᵘ = 0, unchanged)`}</Formula>
+          </>
+        ),
+      },
+      {
+        title: '2 · Eliminate iᵈ, then m',
+        body: (
+          <Formula>{`lower:  −m + 1        →   −∞           (m → ∞)
+upper:  −m + 9        →   −1 + 9 = 8    (iᵈ = 9, then m = 1)
+
+E ∈ [−∞, 8]`}</Formula>
+        ),
+      },
+      {
+        title: '3 · Verdict',
+        body: (
+          <Panel className="text-sm leading-relaxed">
+            <Code>c = 0 ∈ [−∞, 8]</Code> ⇒ a dependence is <Bad>possible</Bad> — e.g. <Code>m = 1, iᵈ = 1, iᵘ = 0</Code>{' '}
+            gives exactly 0. Since <Code>iᵈ &gt; iᵘ</Code> the read (use) happens <em>before</em> the write (def): an{' '}
+            <strong>anti-dependence</strong>.
+          </Panel>
+        ),
+      },
     ],
-    interval: '[−∞, 8]',
-    dep: true,
-    verdict: (
-      <>
-        <Code>c ≡ 0 ∈ [−∞, 8]</Code> ⇒ a dependence is <Bad>possible</Bad>. Since iᵈ &gt; iᵘ (use before def), it is an{' '}
-        <strong>anti-dependence</strong>.
-      </>
-    ),
   },
 ]
 
@@ -435,13 +609,8 @@ const ExtremeExplorer: React.FC = () => {
           </button>
         ))}
       </div>
-      <div className="text-sm font-medium mb-1">{cse.title}</div>
-      {cse.extra && <div className="text-xs text-muted-foreground mb-1">{cse.extra}</div>}
-      <Table head={['step', 'lower limit', 'upper limit']} rows={cse.rows} />
-      <Panel className="text-sm leading-relaxed mt-1">
-        extreme values <Code>{cse.interval}</Code>{' — '}
-        {cse.verdict}
-      </Panel>
+      <div className="text-sm font-medium mb-2">{cse.title}</div>
+      <Stepper key={cse.key} steps={cse.steps} showProgress />
     </div>
   )
 }
@@ -454,15 +623,69 @@ const ExtremeSection: React.FC = () => (
       </CardHeader>
       <CardContent>
         <p className="text-sm mb-2">
-          A complementary, range-based filter. Plug the <strong>lower and upper loop limits</strong> of each unknown into
-          the expression <Code>Σ aₖ·iₖ</Code> to bound it:
+          A complementary, range-based filter. The idea: the left-hand side <Code>Σ aₖ·iₖ</Code> of the dependence
+          equation can only take values in some interval, because each <Code>iₖ</Code> is boxed in by its loop limits. If
+          the required constant <Code>c</Code> falls <em>outside</em> that interval, the equation has no solution at all:
         </p>
         <Formula>{`compute the interval  [ min Σ aₖ·iₖ ,  max Σ aₖ·iₖ ]  over the loop limits.
 a dependence can only exist if  c  lies inside that interval.`}</Formula>
-        <p className="text-sm">
-          Eliminate one unknown at a time, taking the limit that minimizes (for the lower bound) or maximizes (for the
-          upper bound) the running expression.
+        <p className="text-sm mb-2">
+          The min and max are easy because every term is independent — you just have to plug in the right end of each
+          variable's range, and which end is "right" depends only on the <strong>sign of its coefficient</strong>:
         </p>
+        <Table
+          head={['coefficient aₖ', 'for the upper limit (maximize)', 'for the lower limit (minimize)']}
+          rows={[
+            [<><Code>aₖ &gt; 0</Code> — the term grows with iₖ</>, <>plug the <strong>upper</strong> loop limit</>, <>plug the <strong>lower</strong> loop limit</>],
+            [<><Code>aₖ &lt; 0</Code> — the term shrinks as iₖ grows</>, <>plug the <strong>lower</strong> loop limit</>, <>plug the <strong>upper</strong> loop limit</>],
+          ]}
+        />
+        <p className="text-sm mt-2">
+          In practice you eliminate one variable per step: replace it by the chosen limit in the running lower- and
+          upper-limit expressions, simplify, and move to the next variable until only numbers remain.
+        </p>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">How a direction constraint changes the bounds</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm mb-2">
+          A direction vector entry for loop <Code>k</Code> is just an extra inequality between <Code>iᵈₖ</Code> and{' '}
+          <Code>iᵘₖ</Code>, and inequalities are extra limits (over integers, "&lt;" gains a "±1"):
+        </p>
+        <Table
+          head={['direction', 'as inequality', 'what it adds']}
+          rows={[
+            [<Code>&lt;</Code>, <Code>iᵘ ≥ iᵈ + 1</Code>, <>a new <strong>lower</strong> limit for iᵘ (or upper limit <Code>iᵈ ≤ iᵘ − 1</Code> for iᵈ)</>],
+            [<Code>=</Code>, <Code>iᵈ = iᵘ</Code>, <>no limits at all — <strong>substitute</strong> and both variables drop out</>],
+            [<Code>&gt;</Code>, <Code>iᵘ ≤ iᵈ − 1</Code>, <>a new <strong>upper</strong> limit for iᵘ (or lower limit <Code>iᵈ ≥ iᵘ + 1</Code> for iᵈ)</>],
+          ]}
+        />
+        <div className="mt-2 space-y-2">
+          <Step n="1">
+            The constrained variable now has <strong>two candidate limits</strong> on one side: the loop limit and the
+            constraint limit. Take the <strong>tighter</strong> one — that is the whole "modification".
+          </Step>
+          <Step n="2">
+            The constraint limit contains the <em>other</em> variable (e.g. <Code>iᵈ + 1</Code>). That's fine: eliminate
+            the constrained variable <strong>first</strong>. Because iᵈ and iᵘ usually enter with opposite coefficients,
+            the substitution makes them <strong>cancel</strong>, and the interval tightens.
+          </Step>
+          <Step n="3">
+            The other side of the range is untouched: <Code>&lt;</Code> pushes up only the lower limit of iᵘ,{' '}
+            <Code>&gt;</Code> pulls down only its upper limit.
+          </Step>
+        </div>
+        <Panel className="text-sm leading-relaxed mt-2">
+          <strong>Shortcut for the common case:</strong> when the pair enters as <Code>a·iᵈ − a·iᵘ</Code>, only the{' '}
+          <em>difference</em> <Code>Δ = iᵈ − iᵘ</Code> matters. With loop range <Code>[L, U]</Code>, the base range is{' '}
+          <Code>Δ ∈ [L−U, U−L]</Code>, and the direction simply clips it: <Code>&lt;</Code> → <Code>[L−U, −1]</Code>,{' '}
+          <Code>=</Code> → <Code>{'{0}'}</Code>, <Code>&gt;</Code> → <Code>[1, U−L]</Code>. This is exactly what the
+          cancellation in the long procedure computes.
+        </Panel>
       </CardContent>
     </Card>
 
@@ -473,20 +696,29 @@ a dependence can only exist if  c  lies inside that interval.`}</Formula>
       <CardContent>
         <Pre>{`if (m > 0)
   for (i = 1; i <= 10; i++)
-    a[i] = a[i+m] + b[i];
-
-dependence equation:  −m + iᵈ − iᵘ = 0
-limits:  1 ≤ m ≤ ∞,   0 ≤ iᵈ ≤ 9,   0 ≤ iᵘ ≤ 9`}</Pre>
+    a[i] = a[i+m] + b[i];`}</Pre>
+        <p className="text-sm mb-2">
+          <strong>Setting it up first.</strong> Normalize the loop to <Code>i = 0…9</Code>: the write becomes{' '}
+          <Code>a[iᵈ + 1]</Code>, the read <Code>a[iᵘ + m + 1]</Code>. Same cell means{' '}
+          <Code>iᵈ + 1 = iᵘ + m + 1</Code>, i.e. <Code>−m + iᵈ − iᵘ = 0</Code>. The limits come straight from the code:
+          the loop gives <Code>0 ≤ iᵈ, iᵘ ≤ 9</Code>, and the <Code>if (m &gt; 0)</Code> guard gives{' '}
+          <Code>1 ≤ m ≤ ∞</Code> — an unknown like <Code>m</Code> with no known upper bound simply gets <Code>∞</Code> as
+          its upper limit.
+        </p>
+        <Formula>{`dependence equation:  −m + iᵈ − iᵘ = 0      (c = 0)
+limits:  1 ≤ m ≤ ∞,   0 ≤ iᵈ ≤ 9,   0 ≤ iᵘ ≤ 9`}</Formula>
         <p className="text-sm mb-3">
-          The arbitrary-direction case can't decide, but constraining the direction vector tightens the interval enough to
-          exclude the flow dependence. Toggle the cases:
+          The arbitrary-direction case can't decide, but each direction constraint tightens the interval. Toggle the four
+          cases and step through — every step says <em>which</em> limit is plugged in and <em>why</em>:
         </p>
         <ExtremeExplorer />
         <Panel className="text-sm leading-relaxed mt-2">
-          (∗) is inconclusive; <Code>&lt;</Code> and <Code>=</Code> both exclude a dependence, so there is{' '}
-          <strong>no flow dependence</strong>; only <Code>&gt;</Code> survives ⇒ an <strong>anti-dependence</strong> is
-          possible. Note this test only uses loop limits — it does <em>not</em> check for an integer solution, so it pairs
-          naturally with the GCD test.
+          <strong>Putting the four cases together:</strong> (∗) is inconclusive; <Code>&lt;</Code> and <Code>=</Code> both
+          exclude a dependence, so there is <strong>no flow dependence</strong> (no iteration writes a cell a later
+          iteration reads); only <Code>&gt;</Code> survives ⇒ an <strong>anti-dependence</strong> is possible (a later
+          iteration overwrites what an earlier one read — real, since <Code>a[i]</Code> reads ahead by <Code>m</Code>).
+          Note this test only uses loop limits — it does <em>not</em> check for an integer solution, so it pairs naturally
+          with the GCD test.
         </Panel>
       </CardContent>
     </Card>
@@ -506,19 +738,40 @@ interface DvNode {
   kind: Kind
   interval: string
   eq?: string
+  deriv: string
   note: React.ReactNode
 }
 const dvNodes: DvNode[] = [
-  { id: 's', label: '(∗,∗)', x: 320, y: 34, kind: 'refine', interval: '[−99, 99]', eq: '10·iᵈ₁ − 10·iᵘ₁ + iᵈ₂ − iᵘ₂ = −1', note: 'GCD test allows it; −1 ∈ [−99, 99] ⇒ refine the first dimension.' },
-  { id: '<', label: '(<,∗)', x: 150, y: 150, kind: 'refine', interval: '[−99, −1]', note: 'add iᵈ₁ ≤ iᵘ₁ − 1; −1 ∈ [−99, −1] ⇒ refine further.' },
-  { id: '=', label: '(=,∗)', x: 360, y: 150, kind: 'refine', interval: '[−9, 9]', eq: 'iᵈ₂ − iᵘ₂ = −1', note: 'add iᵈ₁ = iᵘ₁, the equation simplifies; −1 ∈ [−9, 9] ⇒ refine.' },
-  { id: '>', label: '(>,∗)', x: 560, y: 150, kind: 'independent', interval: '[1, 99]', note: 'add iᵘ₁ ≤ iᵈ₁ − 1; −1 ∉ [1, 99] ⇒ whole branch independent.' },
-  { id: '<<', label: '(<,<)', x: 60, y: 280, kind: 'independent', interval: '[−99, −11]', note: '−1 ∉ [−99, −11] ⇒ independent.' },
-  { id: '<=', label: '(<,=)', x: 150, y: 280, kind: 'independent', interval: '[−90, −10]', eq: '10·iᵈ₁ − 10·iᵘ₁ = −1', note: 'gcd 10 ∤ −1, and −1 ∉ [−90, −10] ⇒ independent.' },
-  { id: '<>', label: '(<,>)', x: 240, y: 280, kind: 'possible', interval: '[−89, −1]', note: '−1 ∈ [−89, −1] ⇒ dependence possible (carried by the outer loop — the row wrap-around).' },
-  { id: '=<', label: '(=,<)', x: 300, y: 280, kind: 'possible', interval: '[−9, −1]', note: '−1 ∈ [−9, −1] ⇒ dependence possible (carried by the inner loop — consecutive j).' },
-  { id: '==', label: '(=,=)', x: 372, y: 280, kind: 'independent', interval: '{0}', eq: '0 = −1', note: '0 ≠ −1 ⇒ no solution, independent.' },
-  { id: '=>', label: '(=,>)', x: 444, y: 280, kind: 'independent', interval: '[1, 9]', note: '−1 ∉ [1, 9] ⇒ independent.' },
+  { id: 's', label: '(∗,∗)', x: 320, y: 34, kind: 'refine', interval: '[−99, 99]', eq: '10·iᵈ₁ − 10·iᵘ₁ + iᵈ₂ − iᵘ₂ = −1',
+    deriv: 'Δ₁ ∈ [−9, 9] (∗)   Δ₂ ∈ [−9, 9] (∗)\n10·Δ₁ + Δ₂ ∈ [10·(−9) + (−9), 10·9 + 9] = [−99, 99]',
+    note: 'No constraints yet: both differences take their full loop range. GCD test allows it and −1 ∈ [−99, 99] ⇒ refine the first dimension into <, =, >.' },
+  { id: '<', label: '(<,∗)', x: 150, y: 150, kind: 'refine', interval: '[−99, −1]',
+    deriv: 'Δ₁ ∈ [−9, −1] (<)   Δ₂ ∈ [−9, 9] (∗)\n10·Δ₁ + Δ₂ ∈ [10·(−9) + (−9), 10·(−1) + 9] = [−99, −1]',
+    note: '< clips Δ₁ from [−9, 9] to [−9, −1] (its upper end drops to −1); Δ₂ still free. −1 ∈ [−99, −1] — barely, at the very edge — ⇒ refine the second dimension.' },
+  { id: '=', label: '(=,∗)', x: 360, y: 150, kind: 'refine', interval: '[−9, 9]', eq: 'iᵈ₂ − iᵘ₂ = −1',
+    deriv: 'Δ₁ = 0 (=)   Δ₂ ∈ [−9, 9] (∗)\n10·0 + Δ₂ ∈ [−9, 9]',
+    note: '= pins Δ₁ to 0, so the 10·Δ₁ term vanishes and the equation collapses to iᵈ₂ − iᵘ₂ = −1. −1 ∈ [−9, 9] ⇒ refine.' },
+  { id: '>', label: '(>,∗)', x: 560, y: 150, kind: 'independent', interval: '[1, 99]',
+    deriv: 'Δ₁ ∈ [1, 9] (>)   Δ₂ ∈ [−9, 9] (∗)\n10·Δ₁ + Δ₂ ∈ [10·1 + (−9), 10·9 + 9] = [1, 99]',
+    note: '> clips Δ₁ to [1, 9], so 10·Δ₁ ≥ 10 — even the most negative Δ₂ (−9) can only pull the sum down to 1. −1 ∉ [1, 99] ⇒ the whole branch is pruned: no need to test (>,<), (>,=), (>,>).' },
+  { id: '<<', label: '(<,<)', x: 60, y: 280, kind: 'independent', interval: '[−99, −11]',
+    deriv: 'Δ₁ ∈ [−9, −1]   Δ₂ ∈ [−9, −1]\n10·Δ₁ + Δ₂ ∈ [−90 − 9, −10 − 1] = [−99, −11]',
+    note: 'Both differences are now ≤ −1, so the sum is at best 10·(−1) + (−1) = −11. −1 ∉ [−99, −11] ⇒ independent.' },
+  { id: '<=', label: '(<,=)', x: 150, y: 280, kind: 'independent', interval: '[−90, −10]', eq: '10·iᵈ₁ − 10·iᵘ₁ = −1',
+    deriv: 'Δ₁ ∈ [−9, −1]   Δ₂ = 0\n10·Δ₁ ∈ [−90, −10]',
+    note: 'Δ₂ = 0 leaves only multiples of 10. Two independent proofs: gcd 10 ∤ −1, and −1 ∉ [−90, −10] ⇒ independent.' },
+  { id: '<>', label: '(<,>)', x: 240, y: 280, kind: 'possible', interval: '[−89, −1]',
+    deriv: 'Δ₁ ∈ [−9, −1]   Δ₂ ∈ [1, 9]\n10·Δ₁ + Δ₂ ∈ [−90 + 1, −10 + 9] = [−89, −1]',
+    note: '−1 ∈ [−89, −1]: reached with Δ₁ = −1, Δ₂ = 9 — write A[i·10+9], read it back next row as A[(i+1)·10+0]. Dependence possible, carried by the outer loop (the row wrap-around).' },
+  { id: '=<', label: '(=,<)', x: 300, y: 280, kind: 'possible', interval: '[−9, −1]',
+    deriv: 'Δ₁ = 0   Δ₂ ∈ [−9, −1]\nΔ₂ ∈ [−9, −1]',
+    note: '−1 ∈ [−9, −1]: reached with Δ₂ = −1 — consecutive j in the same row. Dependence possible, carried by the inner loop.' },
+  { id: '==', label: '(=,=)', x: 372, y: 280, kind: 'independent', interval: '{0}', eq: '0 = −1',
+    deriv: 'Δ₁ = 0   Δ₂ = 0\n10·0 + 0 = 0 ≠ −1',
+    note: 'Both differences pinned to 0: the left side can only be 0, but the equation needs −1 ⇒ no solution, independent.' },
+  { id: '=>', label: '(=,>)', x: 444, y: 280, kind: 'independent', interval: '[1, 9]',
+    deriv: 'Δ₁ = 0   Δ₂ ∈ [1, 9]\nΔ₂ ∈ [1, 9]',
+    note: 'Δ₂ ≥ 1 makes the sum positive, but we need −1 ∉ [1, 9] ⇒ independent.' },
 ]
 const dvEdges: [string, string][] = [
   ['s', '<'], ['s', '='], ['s', '>'],
@@ -579,6 +832,7 @@ const DvTree: React.FC = () => {
           <span className="text-xs text-muted-foreground font-mono ml-auto">interval {node.interval}</span>
         </div>
         {node.eq && <div className="font-mono text-[12.5px] mb-1">{node.eq}</div>}
+        <pre className="font-mono text-[12px] leading-relaxed whitespace-pre-wrap bg-muted/60 rounded-md px-2.5 py-1.5 mb-1.5">{node.deriv}</pre>
         <div className="text-[13px] leading-relaxed">{node.note}</div>
       </Panel>
     </div>
@@ -597,12 +851,51 @@ const HierarchySection: React.FC = () => (
           <Code>d</Code> dimensions there are <Code>3ᵈ</Code> of them; organise the search as a tree with one level per
           dimension:
         </p>
-        <Step n="1">test a dimension with the wildcard <Code>(∗)</Code> first;</Step>
-        <Step n="2">if independent ⇒ <strong>prune the entire branch</strong>;</Step>
-        <Step n="3">if a dependence is possible ⇒ refine that dimension into <Code>&lt;, =, &gt;</Code> and recurse independently.</Step>
+        <Step n="1">start at the root <Code>(∗,∗,…)</Code>: every dimension unconstrained;</Step>
+        <Step n="2">run the extreme value test with the node's constraints; if <Code>c</Code> falls outside the interval ⇒ independent ⇒ <strong>prune the entire subtree</strong> (a child only <em>adds</em> constraints, so its interval can only shrink — it can never re-admit <Code>c</Code>);</Step>
+        <Step n="3">if <Code>c</Code> is still inside ⇒ refine: pick the leftmost <Code>∗</Code>, replace it by <Code>&lt;</Code>, <Code>=</Code>, <Code>&gt;</Code> in turn, and recurse into each child;</Step>
+        <Step n="4">a node with no <Code>∗</Code> left and <Code>c</Code> still inside its interval is a <strong>surviving direction vector</strong> — a possible dependence with exactly that direction.</Step>
         <p className="text-xs text-muted-foreground mt-1">
           Because the test is inexact, it can happen that <Code>(∗)</Code> is inconclusive yet all three refinements{' '}
-          <Code>&lt;, =, &gt;</Code> are excludable.
+          <Code>&lt;, =, &gt;</Code> are excludable — that's why refining is worthwhile even when the parent says "maybe".
+        </p>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">How each node's interval is computed</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm mb-2">
+          In the example below the equation is <Code>10·iᵈ₁ − 10·iᵘ₁ + iᵈ₂ − iᵘ₂ = −1</Code>. Each index pair enters with
+          equal-and-opposite coefficients, so only the <strong>differences</strong> matter — write the equation with{' '}
+          <Code>Δₖ = iᵈₖ − iᵘₖ</Code>:
+        </p>
+        <Formula>{`10·Δ₁ + Δ₂ = −1        with  Δₖ = iᵈₖ − iᵘₖ
+
+loop limits 0 ≤ iᵈₖ, iᵘₖ ≤ 9  ⇒  base range  Δₖ ∈ [0 − 9, 9 − 0] = [−9, 9]`}</Formula>
+        <p className="text-sm mb-2">
+          A direction symbol for dimension <Code>k</Code> is a constraint on <Code>Δₖ</Code> alone, and just{' '}
+          <strong>clips its range</strong>:
+        </p>
+        <Table
+          head={['symbol', 'constraint on Δₖ', 'clipped range']}
+          rows={[
+            [<Code>∗</Code>, 'none', <Code>[−9, 9]</Code>],
+            [<Code>&lt;</Code>, <><Code>iᵈ &lt; iᵘ</Code> ⇒ <Code>Δₖ ≤ −1</Code></>, <Code>[−9, −1]</Code>],
+            [<Code>=</Code>, <Code>Δₖ = 0</Code>, <Code>{'{0}'}</Code>],
+            [<Code>&gt;</Code>, <><Code>iᵈ &gt; iᵘ</Code> ⇒ <Code>Δₖ ≥ 1</Code></>, <Code>[1, 9]</Code>],
+          ]}
+        />
+        <p className="text-sm mt-2">
+          Then the node's interval is plain interval arithmetic — coefficient 10 is positive, so lower goes with lower,
+          upper with upper:
+        </p>
+        <Formula>{`10·Δ₁ + Δ₂  ∈  [ 10·min(Δ₁) + min(Δ₂),  10·max(Δ₁) + max(Δ₂) ]`}</Formula>
+        <p className="text-sm">
+          Verdict: if <Code>−1</Code> is outside ⇒ independent, prune. If inside and a <Code>∗</Code> remains ⇒ refine. If
+          inside at a leaf ⇒ dependence possible. Every node in the tree below shows this two-line computation.
         </p>
       </CardContent>
     </Card>
@@ -618,10 +911,11 @@ const HierarchySection: React.FC = () => (
     ...             = A[i*10 + j - 1]
   }
 
-10·iᵈ₁ − 10·iᵘ₁ + iᵈ₂ − iᵘ₂ = −1,    0 ≤ all unknowns ≤ 9`}</Pre>
+10·iᵈ₁ − 10·iᵘ₁ + iᵈ₂ − iᵘ₂ = −1,    0 ≤ all unknowns ≤ 9
+⇔  10·Δ₁ + Δ₂ = −1,                  Δ₁, Δ₂ ∈ [−9, 9]`}</Pre>
         <p className="text-sm mb-3">
-          Click a node to see its added constraint, extreme-value interval, and verdict. Only two leaves survive — the
-          outer-loop wrap and the inner-loop neighbour:
+          Click a node: it shows the clipped Δ-ranges its direction symbols impose, the interval they produce, and the
+          verdict. Only two leaves survive — the outer-loop wrap and the inner-loop neighbour:
         </p>
         <DvTree />
         <p className="text-xs text-muted-foreground mt-2">
@@ -638,46 +932,256 @@ const HierarchySection: React.FC = () => (
  *  Tab 5 · treating multiple equations  (A / B / C)
  * ------------------------------------------------------------------ */
 
+const possASteps: StepPanel[] = [
+  {
+    title: '0 · One equation per dimension — derive both from the code',
+    body: (
+      <>
+        <Pre>{`for (i = 1; i <= 10; i++) {
+  a[i][i]   = ...
+  ...       = a[i][i-1]
+}`}</Pre>
+        <p className="text-sm mb-1">
+          Normalize <Code>i = 0…9</Code> (original index = i + 1). The write touches <Code>a[iᵈ+1][iᵈ+1]</Code>, the read{' '}
+          <Code>a[iᵘ+1][iᵘ]</Code>. The <em>same</em> cell means <strong>every dimension</strong> matches — each dimension
+          contributes its own equation over the <em>same</em> unknowns iᵈ, iᵘ:
+        </p>
+        <Formula>{`dim 1 (rows):     iᵈ + 1 = iᵘ + 1   ⇔   iᵈ − iᵘ = 0
+dim 2 (columns):  iᵈ + 1 = iᵘ       ⇔   iᵈ − iᵘ = −1`}</Formula>
+      </>
+    ),
+  },
+  {
+    title: '1 · Solve each equation alone with a single-equation test',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          Run the machinery from the earlier tabs on each equation separately, and record what each one <em>demands</em>{' '}
+          as a distance / direction:
+        </p>
+        <Table
+          head={['Equation', 'Solvable alone?', 'Demands']}
+          rows={[
+            [<Code>iᵈ − iᵘ = 0</Code>, 'yes (any iᵈ = iᵘ)', <>distance 0 ⇒ direction <Code>(=)</Code></>],
+            [<Code>iᵈ − iᵘ = −1</Code>, 'yes (any iᵈ = iᵘ − 1)', <>distance 1 ⇒ direction <Code>(&lt;)</Code></>],
+          ]}
+        />
+        <p className="text-sm mt-1">
+          Each equation on its own is harmless — plenty of solutions. The question is whether they have a{' '}
+          <strong>common</strong> one.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: '2 · Intersect the solution sets',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          Both equations constrain the <em>same</em> pair <Code>(iᵈ, iᵘ)</Code>, so a dependence needs one pair satisfying
+          both at once. Compare their demands on the single quantity <Code>iᵈ − iᵘ</Code>:
+        </p>
+        <Formula>{`dim 1 demands   iᵈ − iᵘ = 0        (direction =)
+dim 2 demands   iᵈ − iᵘ = −1       (direction <)
+
+0 ≠ −1  ⇒  intersection is empty`}</Formula>
+        <Panel className="text-sm leading-relaxed">
+          <strong>No common direction vector ⇒ no dependence</strong> <Good>— exact result, cheaply.</Good> Geometrically:
+          the writes walk the diagonal <Code>a[i][i]</Code>, the reads the sub-diagonal <Code>a[i][i−1]</Code> — the two
+          never touch the same cell. Intersecting via distance/direction vectors is the practical way to intersect,
+          because they summarize each equation's solution set in comparable form.
+        </Panel>
+      </>
+    ),
+  },
+]
+
+const possBSteps: StepPanel[] = [
+  {
+    title: '0 · The code and its two dependence equations',
+    body: (
+      <>
+        <Pre>{`double a[30][20];
+for (i = 1; i <= 10; i++)
+  for (j = 1; j <= 10; j++) {
+    a[i+j+1][j+1] = ...
+    ...           = a[j+i][j+1]
+  }`}</Pre>
+        <p className="text-sm mb-1">
+          Dimension by dimension (write index = read index), with <Code>Δₖ = iᵈₖ − iᵘₖ</Code>:
+        </p>
+        <Formula>{`dim 1:  iᵈ₁ + iᵈ₂ + 1 = iᵘ₁ + iᵘ₂    ⇔  Δ₁ + Δ₂ = −1     (1)
+dim 2:  iᵈ₂ + 1 = iᵘ₂ + 1            ⇔  Δ₂ = 0           (2)`}</Formula>
+      </>
+    ),
+  },
+  {
+    title: '1 · The idea: fold the system into one equation',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          Our solvers handle <em>one</em> equation. So build a single linear combination{' '}
+          <Code>λ₁·(1) + λ₂·(2)</Code>. The logic only runs one way:
+        </p>
+        <Formula>{`(iᵈ, iᵘ) solves (1) AND (2)   ⇒   it solves  λ₁·(1) + λ₂·(2)
+but NOT conversely`}</Formula>
+        <p className="text-sm">
+          So if the <em>combined</em> equation has no solution, the system has none either (<Good>safe "no
+          dependence"</Good>). But the combined equation may have extra solutions that solve neither original — then we
+          report a <Bad>spurious dependence</Bad>. The method is <strong>conservative but inexact</strong>.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: '2 · Choosing the weights: linearize by storage order',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          Which λ's? A natural choice comes from how the array sits in memory. With <Code>double a[30][20]</Code> in
+          row-major order, element <Code>a[x][y]</Code> lives at offset <Code>x·20 + y</Code> — so "same cell" in memory
+          means the <em>flattened</em> indices agree, which is precisely <Code>20·(dim 1 equation) + (dim 2
+          equation)</Code>:
+        </p>
+        <Formula>{`20·(1) + (2):    20·Δ₁ + 20·Δ₂ + Δ₂ = 20·(−1) + 0
+            ⇔    20·Δ₁ + 21·Δ₂ = −20`}</Formula>
+        <p className="text-sm">
+          i.e. treat the 2-D array as the 1-D array it really is, and set up the single dependence equation on addresses.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: '3 · Why this is inexact — a concrete spurious solution',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          The combined equation lets one dimension "pay for" another. For example:
+        </p>
+        <Formula>{`Δ₁ = −22, Δ₂ = 20:   20·(−22) + 21·20 = −440 + 420 = −20  ✓ combined
+but  Δ₂ = 20 ≠ 0  ✗ violates (2)`}</Formula>
+        <p className="text-sm">
+          A column difference of 20 wraps exactly one row, so the flat addresses collide even though the 2-D indices
+          differ. Here the loop limits keep <Code>Δ₂ ∈ [−9, 9]</Code>, so no spurious solution is in range — but with
+          bigger loops or unknown limits the combined equation would admit them, and the test would answer "maybe" where
+          the system says "no".
+        </p>
+      </>
+    ),
+  },
+  {
+    title: '4 · Cleaner alternative: let one equation eliminate',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          When one equation is as simple as (2), don't combine — <strong>substitute</strong>. (2) forces{' '}
+          <Code>Δ₂ = 0</Code>; put that into (1):
+        </p>
+        <Formula>{`Δ₁ + 0 = −1   ⇒   Δ₁ = −1   (and Δ₂ = 0)`}</Formula>
+        <Panel className="text-sm leading-relaxed">
+          Distance vector <Code>(1, 0)</Code>, direction <Code>(&lt;, =)</Code>: iteration <Code>(i, j)</Code> writes
+          the cell that iteration <Code>(i+1, j)</Code> reads — a dependence carried by the <strong>outer</strong> loop,
+          derived exactly. This substitution idea, done systematically, is Possibility C.
+        </Panel>
+      </>
+    ),
+  },
+]
+
 const elimSteps: StepPanel[] = [
   {
-    title: '0 · A system of two dependence equations',
+    title: '0 · A system of two dependence equations — the plan',
     body: (
-      <Formula>{`3·i₁ + 2·i₂ − i₃ = 9
-2·i₁ − 2·i₂ + 5·i₃ = 7`}</Formula>
+      <>
+        <Formula>{`(1)  3·i₁ + 2·i₂ − i₃  = 9
+(2)  2·i₁ − 2·i₂ + 5·i₃ = 7`}</Formula>
+        <p className="text-sm">
+          <strong>Plan:</strong> use one equation to express one variable through the others and substitute it into the
+          remaining equations. Each round removes one equation and one variable, so after <Code>n − 1</Code> rounds a
+          system of <Code>n</Code> equations is down to a single equation — which the single-equation machinery (GCD test,
+          parametrization) already handles.
+        </p>
+      </>
     ),
   },
   {
-    title: '1 · Use eqn (1) to eliminate i₃',
+    title: '1 · Use (1) to eliminate i₃ — pick a ±1 coefficient',
     body: (
       <>
+        <p className="text-sm mb-1">
+          Which variable to eliminate? One whose coefficient is <strong>±1</strong>, so solving for it stays integer:
+          in (1), <Code>i₃</Code> has coefficient −1. Solve (1) for it:
+        </p>
         <Formula>{`i₃ = 3·i₁ + 2·i₂ − 9              (3.9)
 
-into (2):  2·i₁ − 2·i₂ + 5·(3·i₁+2·i₂−9) = 7
+into (2):  2·i₁ − 2·i₂ + 5·(3·i₁ + 2·i₂ − 9) = 7
+        ⇔  2·i₁ − 2·i₂ + 15·i₁ + 10·i₂ − 45 = 7
         ⇔  17·i₁ + 8·i₂ = 52            (3.10)`}</Formula>
+        <p className="text-sm">
+          Equation (1) is now satisfied <em>by construction</em> — whatever <Code>i₁, i₂</Code> end up being, (3.9)
+          manufactures the matching <Code>i₃</Code>. Only (3.10) is left to solve.
+        </p>
       </>
     ),
   },
   {
-    title: '2 · No ±1 coefficient → substitute again',
+    title: '2 · (3.10) has no ±1 coefficient → variable substitution (tab 2 recipe)',
     body: (
       <>
-        <Formula>{`new variable  j₂ = 2·i₁ + i₂   ⇒  i₂ = j₂ − 2·i₁
+        <p className="text-sm mb-1">
+          Neither 17 nor 8 is ±1, so apply the recipe from the "Finding solutions" tab: substitute the
+          smallest-magnitude coefficient (<Code>aₗ = 8</Code> on <Code>i₂</Code>) with a new variable{' '}
+          <Code>jₗ = Σ (aₖ div aₗ)·iₖ</Code>:
+        </p>
+        <Formula>{`j₂ = (17 div 8)·i₁ + (8 div 8)·i₂ = 2·i₁ + i₂   ⇒   i₂ = j₂ − 2·i₁
+
 into (3.10):  17·i₁ + 8·(j₂ − 2·i₁) = 52
+           ⇔  17·i₁ − 16·i₁ + 8·j₂ = 52
            ⇔  i₁ + 8·j₂ = 52`}</Formula>
-        <p className="text-sm">A ±1 coefficient on <Code>i₁</Code> appears.</p>
+        <p className="text-sm">
+          The coefficient of <Code>i₁</Code> dropped from 17 to <strong>1</strong> — now the ±1 case applies and we can
+          parametrize.
+        </p>
       </>
     ),
   },
   {
-    title: '3 · Parametrize by the free variable j₂',
+    title: '3 · Parametrize everything by the free variable j₂',
     body: (
       <>
+        <p className="text-sm mb-1">
+          Solve for <Code>i₁</Code>, then unwind the two substitutions (<Code>i₂ = j₂ − 2·i₁</Code>, then (3.9)):
+        </p>
         <Formula>{`i₁ = 52 − 8·j₂
-i₂ = 17·j₂ − 104
-i₃ = 10·j₂ − 61`}</Formula>
+i₂ = j₂ − 2·(52 − 8·j₂)          = 17·j₂ − 104
+i₃ = 3·(52 − 8·j₂) + 2·(17·j₂ − 104) − 9 = 10·j₂ − 61`}</Formula>
+        <p className="text-sm mb-1">
+          <strong>Sanity check</strong> with <Code>j₂ = 7</Code>: <Code>(i₁, i₂, i₃) = (−4, 15, 9)</Code>:
+        </p>
+        <Formula>{`(1):  3·(−4) + 2·15 − 9   = −12 + 30 − 9 = 9  ✓
+(2):  2·(−4) − 2·15 + 5·9 = −8 − 30 + 45 = 7  ✓`}</Formula>
+        <p className="text-sm">
+          Every integer <Code>j₂</Code> gives a simultaneous solution of both equations — the full solution set is a line
+          through ℤ³, parametrized by <Code>j₂</Code>.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: '4 · Last step of a real test: intersect with the loop limits',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          A dependence needs an <em>in-bounds</em> solution. Suppose the loops gave <Code>0 ≤ i₁, i₂, i₃ ≤ 9</Code>.
+          Each formula becomes a constraint on <Code>j₂</Code>:
+        </p>
+        <Formula>{`0 ≤ 52 − 8·j₂  ≤ 9   ⇒   5.375 ≤ j₂ ≤ 6.5   ⇒   j₂ = 6  (only integer)
+
+check j₂ = 6:   i₁ = 4 ✓     i₂ = 17·6 − 104 = −2 ✗  (out of range)`}</Formula>
         <Panel className="text-sm leading-relaxed">
-          Both equations are satisfied simultaneously for every integer <Code>j₂</Code>. (For a real loop, one would now
-          intersect this line with the loop-limit box to decide whether any in-bounds point exists.)
+          The only candidate fails the <Code>i₂</Code> range ⇒ <Good>no in-bounds solution ⇒ no dependence</Good> for
+          these limits. This is the complete pipeline: <strong>eliminate</strong> equations one by one →{' '}
+          <strong>parametrize</strong> the joint solution set → <strong>intersect</strong> with the loop-limit box.
         </Panel>
       </>
     ),
@@ -691,10 +1195,24 @@ const MultiSection: React.FC = () => (
         <CardTitle className="text-base">One equation per array dimension</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm">
-          A <Code>d</Code>-dimensional array gives <Code>d</Code> dependence equations. A dependence exists only if{' '}
-          <strong>all of them hold simultaneously</strong>. Three strategies handle the system.
+        <p className="text-sm mb-2">
+          So far every test handled <em>one</em> equation. But a <Code>d</Code>-dimensional array access produces{' '}
+          <Code>d</Code> equations — one per dimension, all over the <strong>same</strong> unknowns{' '}
+          <Code>iᵈ, iᵘ</Code> — and two accesses touch the same element only if <strong>all of them hold
+          simultaneously</strong>.
         </p>
+        <p className="text-sm mb-2">
+          That "simultaneously" is the whole difficulty: each equation alone may be easily solvable, yet the{' '}
+          <em>system</em> may have no common solution (⇒ no dependence). Three strategies:
+        </p>
+        <Table
+          head={['Strategy', 'Idea', 'Exactness']}
+          rows={[
+            [<strong>A</strong>, 'solve each equation alone, intersect the solution sets', 'exact if the intersection is done exactly'],
+            [<strong>B</strong>, 'fold all equations into one linear combination, solve that', <>inexact — may report a <em>spurious</em> dependence</>],
+            [<strong>C</strong>, 'use one equation to eliminate a variable in the rest; repeat', 'exact — ends in one equation, fully parametrized'],
+          ]}
+        />
       </CardContent>
     </Card>
 
@@ -703,25 +1221,11 @@ const MultiSection: React.FC = () => (
         <CardTitle className="text-base">Possibility A — solve separately, intersect</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm mb-2">
-          Solve each equation alone (with a single-equation solver), then intersect the solution sets — usually via their
-          distance/direction vectors.
+        <p className="text-sm mb-3">
+          Solve each equation with a single-equation solver, summarize each solution set as distance/direction vectors,
+          then check whether any vector is common to all dimensions. Walk the example:
         </p>
-        <Pre>{`for (i = 1; i <= 10; i++) {
-  a[i][i]   = ...
-  ...       = a[i][i-1]
-}`}</Pre>
-        <Table
-          head={['Dimension', 'Equation', 'Requires']}
-          rows={[
-            ['1st', <>iᵈ + 1 = iᵘ + 1 ⇔ iᵈ − iᵘ = 0</>, <>distance 0, direction <Code>(=)</Code></>],
-            ['2nd', <>iᵈ + 1 = iᵘ ⇔ iᵈ − iᵘ = −1</>, <>distance 1, direction <Code>(&lt;)</Code></>],
-          ]}
-        />
-        <Panel className="text-sm leading-relaxed mt-1">
-          The single index <Code>i</Code> cannot satisfy both <Code>iᵈ − iᵘ = 0</Code> and <Code>iᵈ − iᵘ = −1</Code>:{' '}
-          <strong>no common direction vector</strong> ⇒ <Good>no solution ⇒ no dependence</Good>.
-        </Panel>
+        <Stepper steps={possASteps} showProgress />
       </CardContent>
     </Card>
 
@@ -730,26 +1234,11 @@ const MultiSection: React.FC = () => (
         <CardTitle className="text-base">Possibility B — combine into one equation</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm mb-2">
-          Fold the equations into a single linear combination. Every simultaneous solution of the originals solves the
-          combination — but <strong>not</strong> conversely, so the method is <em>inexact</em> (it may report a spurious
-          dependence). A common choice linearizes by the memory storage order.
+        <p className="text-sm mb-3">
+          Fold the system into a single equation via a linear combination — typically the one the memory layout dictates.
+          Cheap, safe, but one-directional: it can prove independence, never a dependence. Walk the example:
         </p>
-        <Pre>{`double a[30][20];
-for (i = 1; i <= 10; i++)
-  for (j = 1; j <= 10; j++) {
-    a[i+j+1][j+1] = ...
-    ...           = a[j+i][j+1]
-  }`}</Pre>
-        <Formula>{`(1)  iᵈ₁ − iᵘ₁ + iᵈ₂ − iᵘ₂ = −1
-(2)  iᵈ₂ − iᵘ₂ = 0
-
-row-major:  a[i][j] @ i·20 + j   ⇒   combine  20·(1) + (2):
-20·iᵈ₁ − 20·iᵘ₁ + 21·iᵈ₂ − 21·iᵘ₂ = −20`}</Formula>
-        <Panel className="text-sm leading-relaxed mt-1">
-          <strong>Cleaner alternative:</strong> use one equation to eliminate. (2) forces <Code>iᵈ₂ = iᵘ₂</Code>;
-          substituting into (1) gives <Code>iᵈ₁ − iᵘ₁ = −1</Code> ⇒ distance vector <Code>(1, 0)</Code> is possible.
-        </Panel>
+        <Stepper steps={possBSteps} showProgress />
       </CardContent>
     </Card>
 
@@ -759,8 +1248,9 @@ row-major:  a[i][j] @ i·20 + j   ⇒   combine  20·(1) + (2):
       </CardHeader>
       <CardContent>
         <p className="text-sm mb-3">
-          Use one equation to substitute a variable in the others (it becomes dependent); repeat <Code>n−1</Code> times
-          for <Code>n</Code> equations, parametrizing by the remaining free variables.
+          Use one equation to substitute a variable in the others (that variable becomes dependent); repeat{' '}
+          <Code>n−1</Code> times for <Code>n</Code> equations until a single equation remains, then parametrize it and
+          check the loop limits. Walk the full pipeline:
         </p>
         <Stepper steps={elimSteps} showProgress />
       </CardContent>
