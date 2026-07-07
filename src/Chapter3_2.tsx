@@ -40,6 +40,8 @@ const Dep: React.FC<{ k: DepKind; children: React.ReactNode }> = ({ k, children 
   </span>
 )
 
+const cyclicFill = (cyc: string[]) => (id: string): Fill => (cyc.includes(id) ? 'loop' : 'none')
+
 /* ------------------------------------------------------------------ *
  *  Tab 1 · parallel loops & vector operations
  *  Interactive: pick a single-statement loop, see whether the
@@ -431,6 +433,222 @@ const SccExample: React.FC = () => {
   )
 }
 
+/* ---- full worked run: vectorize() on a five-statement loop -------- */
+
+const vrLoop = `for (i = 2; i <= n; i++) {
+  S1: y[i] = a[i-1] * 2;
+  S2: a[i] = x[i-1] + 3;
+  S3: x[i] = a[i] * b[i];
+  S4: d[i] = c[i+1] - 1;
+  S5: c[i] = x[i] + d[i];
+}`
+
+const vrNodes: GNode[] = [
+  { id: 'S1', x: 34, y: 95, label: 'S₁' },
+  { id: 'S2', x: 106, y: 95, label: 'S₂' },
+  { id: 'S3', x: 178, y: 95, label: 'S₃' },
+  { id: 'S4', x: 250, y: 95, label: 'S₄' },
+  { id: 'S5', x: 322, y: 95, label: 'S₅' },
+]
+/* nodes sit in textual order; first four edges are the a/x dependences
+   (step 1), the last arrow carries both d/c dependences (step 2) */
+const vrEdges: GEdge[] = [
+  { from: 'S2', to: 'S3', label: 'δᵗ∞', bend: -22 },
+  { from: 'S3', to: 'S2', label: 'δᵗ(1)', bend: -22 },
+  { from: 'S2', to: 'S1', label: 'δᵗ(1)', bend: 26 },
+  { from: 'S3', to: 'S5', label: 'δᵗ∞', bend: -56 },
+  { from: 'S4', to: 'S5', label: 'δᵗ∞ + δᵃ(1)', bend: 26 },
+]
+
+const vrCondNodes: GNode[] = [
+  { id: 'p1', x: 58, y: 52, label: 'π₁', sub: '{S₂,S₃}' },
+  { id: 'p2', x: 216, y: 38, label: 'π₂', sub: '{S₁}' },
+  { id: 'p3', x: 58, y: 140, label: 'π₃', sub: '{S₄}' },
+  { id: 'p4', x: 216, y: 126, label: 'π₄', sub: '{S₅}' },
+]
+const vrCondEdges: GEdge[] = [
+  { from: 'p1', to: 'p2', label: 'δᵗ(1)' },
+  { from: 'p1', to: 'p4', label: 'δᵗ∞' },
+  { from: 'p3', to: 'p4', label: 'δᵗ∞ + δᵃ(1)' },
+]
+
+const vrGraph = (edges: GEdge[], fill?: (id: string) => Fill, caption?: string) => (
+  <FlowGraph nodes={vrNodes} edges={edges} width={356} height={150} maxW={390} fillOf={fill} caption={caption} />
+)
+
+const vecRunSteps: StepPanel[] = [
+  {
+    title: '0 · The loop — five statements, one non-nested loop',
+    body: (
+      <>
+        <Pre>{vrLoop}</Pre>
+        <p className="text-sm mb-1">
+          Five statements, five arrays, dependences of several kinds. Which statements can become vector instructions?
+          Don't guess — run the algorithm mechanically, exactly as you would in the exam:
+        </p>
+        <Step n="1">Find <strong>all</strong> dependences, array by array.</Step>
+        <Step n="2">Draw D and split it into strongly connected components.</Step>
+        <Step n="3">Condense to <Code>Dπ</Code> and pick a topological order.</Step>
+        <Step n="4">Emit: cyclic component → sequential loop; acyclic single instruction → vector instruction.</Step>
+      </>
+    ),
+  },
+  {
+    title: '1 · Dependences through a and x — a cycle forms',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          Go <strong>array by array</strong>: who writes it, who reads it, and how do the indices relate?{' '}
+          <Code>a</Code> is written by S₂ and read by S₃ and S₁; <Code>x</Code> is written by S₃ and read by S₂ and S₅:
+        </p>
+        <Table
+          head={['Pair', 'On', 'Type', 'Why']}
+          rows={[
+            [<>S₂ → S₃</>, 'a', <Dep k="t">δᵗ∞</Dep>, <>S₃ reads <Code>a[i]</Code> in the same iteration S₂ writes it</>],
+            [<>S₃ → S₂</>, 'x', <Dep k="t">δᵗ(1)</Dep>, <>S₃ writes <Code>x[i]</Code>; the next iteration's S₂ reads it as <Code>x[i-1]</Code> — together with the row above, S₂ and S₃ depend on <em>each other</em></>],
+            [<>S₂ → S₁</>, 'a', <Dep k="t">δᵗ(1)</Dep>, <>S₂ writes <Code>a[i]</Code>; the next iteration's S₁ reads it as <Code>a[i-1]</Code></>],
+            [<>S₃ → S₅</>, 'x', <Dep k="t">δᵗ∞</Dep>, <>S₅ reads <Code>x[i]</Code> in the same iteration</>],
+          ]}
+        />
+        {vrGraph(vrEdges.slice(0, 4), undefined, 'D so far — note the arrow running backwards into S₁: the first statement of the body depends on the second')}
+      </>
+    ),
+  },
+  {
+    title: '2 · Dependences through d and c — the anti-dependence trap',
+    body: (
+      <>
+        <Table
+          head={['Pair', 'On', 'Type', 'Why']}
+          rows={[
+            [<>S₄ → S₅</>, 'd', <Dep k="t">δᵗ∞</Dep>, <>S₅ reads <Code>d[i]</Code> right after S₄ writes it</>],
+            [<>S₄ → S₅</>, 'c', <Dep k="a">δᵃ(1)</Dep>, <>S₄ reads <Code>c[i+1]</Code>; <strong>one iteration later</strong> S₅ overwrites that element</>],
+          ]}
+        />
+        <Panel className="text-sm leading-relaxed">
+          The anti dependence is the easy one to miss: in the sequential loop S₄ always sees the <em>original</em> value
+          of <Code>c[i+1]</Code>, because S₅ only clobbers it one iteration later. Any transformed program must keep
+          every S₄-read <strong>before</strong> the S₅-write of the same element — the edge S₄ → S₅ records exactly
+          that.
+        </Panel>
+        <p className="text-sm">
+          <Code>b</Code> is only read, and <Code>y</Code> is written but never read inside the loop — no further edges.
+          Six dependences in total:
+        </p>
+        {vrGraph(vrEdges, undefined, 'D complete — one arrow can carry two dependences (S₄ → S₅: flow on d, anti on c)')}
+      </>
+    ),
+  },
+  {
+    title: '3 · Split D into strongly connected components',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          An SCC needs <strong>mutual</strong> reachability. <Code>S₂ → S₃ → S₂</Code> is the only round trip, so{' '}
+          <Code>{'{S2,S3}'}</Code> collapses into one cyclic component. S₄ → S₅ carries two dependences, but both point
+          the <em>same way</em> — no way back, so no cycle. S₁ only has incoming edges, and no statement depends on
+          itself.
+        </p>
+        {vrGraph(vrEdges, cyclicFill(['S2', 'S3']), 'D — {S₂,S₃} is the only cycle (purple); the other three components are single acyclic instructions')}
+        <Table
+          head={['Component', 'Members', 'Cyclic?']}
+          rows={[
+            [<Code>π₁</Code>, <Code>{'{S2,S3}'}</Code>, <Bad>yes — S₂→S₃→S₂</Bad>],
+            [<Code>π₂</Code>, <Code>{'{S1}'}</Code>, <Good>no</Good>],
+            [<Code>π₃</Code>, <Code>{'{S4}'}</Code>, <Good>no</Good>],
+            [<Code>π₄</Code>, <Code>{'{S5}'}</Code>, <Good>no</Good>],
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    title: '4 · Condensation Dπ + a topological order',
+    body: (
+      <>
+        <p className="text-sm mb-1">
+          Reduce each component to one node; parallel dependences merge into a single edge. The condensation is always
+          acyclic, so a topological order exists:
+        </p>
+        <FlowGraph
+          nodes={vrCondNodes}
+          edges={vrCondEdges}
+          width={280}
+          height={182}
+          maxW={300}
+          fillOf={cyclicFill(['p1'])}
+          caption="Dπ — π₁ (purple, cyclic) and π₃ have no incoming edge; π₂ and π₄ must wait"
+        />
+        <p className="text-sm mb-1">
+          Take <Code>π₁, π₂, π₃, π₄</Code>. This is not unique — <Code>π₃, π₁, π₄, π₂</Code> would be just as correct;
+          any topological order gives an equivalent program.
+        </p>
+        <Panel className="text-sm leading-relaxed">
+          <strong>Topological ≠ textual:</strong> <Code>{'π₂ = {S1}'}</Code> is the <em>first</em> statement of the
+          body, yet the edge π₁ → π₂ forces it to be emitted <em>after</em> the sequential cycle. The algorithm reorders
+          statements for free.
+        </Panel>
+      </>
+    ),
+  },
+  {
+    title: '5 · Emit code, component by component',
+    body: (
+      <>
+        <Table
+          head={['Component', 'Cyclic?', 'Emitted as']}
+          rows={[
+            [<Code>{'π₁ = {S2,S3}'}</Code>, <Bad>yes</Bad>, 'sequential loop, body in original order'],
+            [<Code>{'π₂ = {S1}'}</Code>, <Good>no</Good>, 'vector instruction'],
+            [<Code>{'π₃ = {S4}'}</Code>, <Good>no</Good>, 'vector instruction'],
+            [<Code>{'π₄ = {S5}'}</Code>, <Good>no</Good>, 'vector instruction'],
+          ]}
+        />
+        <Pre>{`for (i = 2; i <= n; i++) {        // π1: the real recurrence
+  S2: a[i] = x[i-1] + 3;          //     stays sequential
+  S3: x[i] = a[i] * b[i];
+}
+S1: y[2:n] = a[1:n-1] * 2;        // π2: was FIRST in the body
+S4: d[2:n] = c[3:n+1] - 1;        // π3: must precede S5 (anti dep)
+S5: c[2:n] = x[2:n] + d[2:n];     // π4: last — needs x and d final`}</Pre>
+        <p className="text-sm">
+          Three of the five statements became vector instructions; only the genuine a/x feedback stays sequential. And
+          since a single-statement loop with no carried dependence is exactly a <em>parallel</em> loop, each vector line
+          could equally be emitted as a parallel (forall) loop — the legality test is the same.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: '6 · Sanity-check the order against every edge',
+    body: (
+      <>
+        <p className="text-sm mb-1">Two "obvious" rearrangements show why the topological order is not optional:</p>
+        <Table
+          head={['Wrong version', 'Violated edge', 'What breaks']}
+          rows={[
+            [
+              <>S₁ emitted <em>before</em> the loop</>,
+              <Dep k="t">S₂ δᵗ(1) S₁</Dep>,
+              <><Code>y[2:n]</Code> would be computed from the <em>original</em> <Code>a</Code> values instead of the ones the recurrence produces</>,
+            ],
+            [
+              <>S₅ emitted <em>before</em> S₄</>,
+              <Dep k="a">S₄ δᵃ(1) S₅</Dep>,
+              <><Code>d[2:n] = c[3:n+1] - 1</Code> would read elements of <Code>c</Code> that S₅ has already overwritten</>,
+            ],
+          ]}
+        />
+        <Panel className="text-sm leading-relaxed">
+          <strong>Exam habit:</strong> after emitting, walk every edge of D once and check that the source component
+          comes before the target component (flow: the producer has finished; anti: the reader still sees the old
+          value). Six edges, six checks — if all pass, the generated program is equivalent.
+        </Panel>
+      </>
+    ),
+  },
+]
+
 const AlgorithmSection: React.FC = () => (
   <div className="space-y-3">
     <Card>
@@ -484,6 +702,20 @@ const AlgorithmSection: React.FC = () => (
         <SccExample />
       </CardContent>
     </Card>
+
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Full worked run — five statements, step by step</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm mb-3">
+          The two warm-up examples can be read off at a glance; this loop cannot. It mixes flow and anti dependences, a
+          two-statement cycle, and an emission order that differs from the textual one. Step through the exact moves you
+          would make on paper.
+        </p>
+        <Stepper steps={vecRunSteps} showProgress />
+      </CardContent>
+    </Card>
   </div>
 )
 
@@ -510,8 +742,6 @@ const bigEdgesD2: GEdge[] = [
   { from: 'S3', to: 'S4', label: 'δᵗ∞' },
 ]
 const bigEdgesD3: GEdge[] = [{ from: 'S2', to: 'S3', label: 'δᵗ∞', bend: 18 }]
-
-const cyclicFill = (cyc: string[]) => (id: string): Fill => (cyc.includes(id) ? 'loop' : 'none')
 
 const codegenSteps: StepPanel[] = [
   {
@@ -654,20 +884,38 @@ const CodegenSection: React.FC = () => (
 
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">The dimension count ρ(π) − k + 1</CardTitle>
+        <CardTitle className="text-base">ρ and k — what they are, and why dims = ρ − k + 1</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm mb-2">
-          When an acyclic component is reached at depth <Code>k</Code>, the loops <Code>1…k−1</Code> are already
-          sequential around it; the remaining <Code>ρ(π) − (k−1)</Code> loops that contain it all collapse into vector
-          dimensions:
-        </p>
-        <Formula>{`dims =  ρ(π) − k + 1
-        ρ(π) = number of loops enclosing the instruction
-        k     = depth at which it is finally emitted`}</Formula>
-        <p className="text-xs text-muted-foreground">
-          0 dimensions means a plain scalar instruction; 1 dimension is a single array slice; 2+ dimensions is a
-          multidimensional array assignment.
+        <Step n="ρ">
+          <strong>ρ(π) = how many loops wrap the statement in the original nest.</strong> A fixed property of the
+          program text — in the worked example below, <Code>S3</Code> sits inside i, j and k, so ρ(S₃) = 3.
+        </Step>
+        <Step n="k">
+          <strong>k = the recursion depth at which the component is finally emitted.</strong> It counts what{' '}
+          <Code>codegen()</Code> has already done on the way down: the outer loops <Code>1 … k−1</Code> have all been
+          generated as <em>sequential</em> for-loops around it.
+        </Step>
+        <Panel className="text-sm leading-relaxed">
+          Every loop around a statement ends up as exactly one of two things: <strong>sequential</strong> (loops{' '}
+          <Code>1 … k−1</Code>, already fixed by the recursion) or a <strong>vector dimension</strong> (the still-open
+          loops <Code>k … ρ(π)</Code>). Counting the open ones gives
+          <Formula>{`dims = ρ(π) − k + 1     (the loops k, k+1, …, ρ)`}</Formula>
+          The formula just says: <em>whatever the recursion hasn't made sequential yet, you may slice.</em>
+        </Panel>
+        <Table
+          head={['Statement (worked example)', 'ρ', 'emitted at k', 'still-open loops k…ρ', 'result']}
+          rows={[
+            [<><Code>S1</Code> in i</>, '1', '1', 'the i-loop', '1-D slice'],
+            [<><Code>S4</Code> in i, j</>, '2', '2', 'the j-loop', '1-D slice'],
+            [<><Code>S3</Code> in i, j, k</>, '3', '3', 'the k-loop', '1-D slice'],
+            [<><Code>S2</Code> in i, j</>, '2', '3', <em>none</em>, '0-D — plain scalar'],
+          ]}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          <strong>dims = 0</strong> happens exactly when all of the statement's own loops have already gone sequential
+          (S₂). <strong>Exam check:</strong> in your final code, (sequential for-loops around an instruction) + (number
+          of <Code>:</Code> slices in it) must equal its ρ — if not, you miscounted k.
         </p>
       </CardContent>
     </Card>
