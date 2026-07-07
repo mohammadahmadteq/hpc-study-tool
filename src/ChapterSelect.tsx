@@ -119,6 +119,13 @@ const chapters: Chapter[] = [
         description:
           'The GCD and extreme-value tests for a Diophantine equation, parametrizing the solution set, the 3ᵈ direction-vector hierarchy, and three ways to treat one equation per array dimension.',
       },
+      {
+        id: '3.5',
+        label: 'Exam',
+        title: 'Chapter 3 Exam Practice',
+        description:
+          'Ten written-exam problems (79 points) with full solutions and point splits, covering every concept of §3.1–§3.4 — including the original exercise-sheet questions 4.2, 4.3, 5.2 and 6.1 (dependence graphs, distance/direction, dependence systems, stepwise elimination, and codegen()).',
+      },
     ],
   },
   {
@@ -189,6 +196,13 @@ const chapters: Chapter[] = [
         title: 'Optimizing for Locality',
         description:
           'The capstone: the memory hierarchy and temporal/spatial/sequential locality; making the step-1 or loop-invariant loop innermost; the affine access model x[A·i+c] with temporal (A·d=0) and spatial reuse factors and data footprints; group reuse across multiple references; and choosing the loop order — with the matrix-multiplication case study.',
+      },
+      {
+        id: '4.10',
+        label: 'Exam',
+        title: 'Chapter 4 Exam Practice',
+        description:
+          'Ten written-exam problems (68 points) with full solutions and point splits, covering every transformation of §4.1–§4.9 — including the original exercise-sheet questions 6.2, 7.1, 7.2, 7.3 and 8.1 (strip mining, unswitching/splitting, fusion, skewing, and tiling).',
       },
     ],
   },

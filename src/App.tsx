@@ -12,6 +12,7 @@ import DataDependenceStudyTool from './Chapter3'
 import VectorizationStudyTool from './Chapter3_2'
 import ArrayDependenceStudyTool from './Chapter3_3'
 import DependenceSolverStudyTool from './Chapter3_4'
+import Chapter3ExamStudyTool from './Chapter3_5'
 import StatementReorderingStudyTool from './Chapter4'
 import LoopFusionStudyTool from './Chapter4_2'
 import LoopDistributionStudyTool from './Chapter4_3'
@@ -21,6 +22,7 @@ import LoopSkewingStudyTool from './Chapter4_6'
 import StripMiningStudyTool from './Chapter4_7'
 import LoopTilingStudyTool from './Chapter4_8'
 import LocalityStudyTool from './Chapter4_9'
+import Chapter4ExamStudyTool from './Chapter4_10'
 import OpenMPStudyTool from './Chapter5'
 import SynchronizationStudyTool from './Chapter5_2'
 import ParallelTasksStudyTool from './Chapter5_3'
@@ -54,6 +56,7 @@ export default function App() {
   if (view === '3.2') return wrap(<VectorizationStudyTool />)
   if (view === '3.3') return wrap(<ArrayDependenceStudyTool />)
   if (view === '3.4') return wrap(<DependenceSolverStudyTool />)
+  if (view === '3.5') return wrap(<Chapter3ExamStudyTool />)
   if (view === '4.1') return wrap(<StatementReorderingStudyTool />)
   if (view === '4.2') return wrap(<LoopFusionStudyTool />)
   if (view === '4.3') return wrap(<LoopDistributionStudyTool />)
@@ -63,6 +66,7 @@ export default function App() {
   if (view === '4.7') return wrap(<StripMiningStudyTool />)
   if (view === '4.8') return wrap(<LoopTilingStudyTool />)
   if (view === '4.9') return wrap(<LocalityStudyTool />)
+  if (view === '4.10') return wrap(<Chapter4ExamStudyTool />)
   if (view === '5.1') return wrap(<OpenMPStudyTool />)
   if (view === '5.2') return wrap(<SynchronizationStudyTool />)
   if (view === '5.3') return wrap(<ParallelTasksStudyTool />)
