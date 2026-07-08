@@ -252,6 +252,22 @@ const chapters: Chapter[] = [
       },
     ],
   },
+  {
+    number: 8,
+    title: 'Register Allocation & Transformations',
+    description:
+      'Keeping values in the fast registers instead of memory: local allocation for a basic block (Sethi–Ullman labeling + gencode with spilling) and global allocation by coloring the register interference graph.',
+    available: true,
+    sections: [
+      {
+        id: '8.1',
+        label: '§8.1–8.2',
+        title: 'Register Allocation',
+        description:
+          'Phase 1 labeling (register need of every subtree) and phase 2 gencode() with a register stack + memory spilling — walked step by step on a 4-register expression tree. Then global allocation: live variables, the definition-based interference graph, k-coloring via the simplify/spill heuristic, spill-choice criteria, and scalar replacement.',
+      },
+    ],
+  },
 ]
 
 interface ChapterSelectProps {

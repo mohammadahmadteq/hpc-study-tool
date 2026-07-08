@@ -27,6 +27,7 @@ import OpenMPStudyTool from './Chapter5'
 import SynchronizationStudyTool from './Chapter5_2'
 import ParallelTasksStudyTool from './Chapter5_3'
 import InstructionSchedulingStudyTool from './Chapter6'
+import RegisterAllocationStudyTool from './Chapter8'
 
 export default function App() {
   const [view, setView] = useState<string | null>(null)
@@ -71,6 +72,7 @@ export default function App() {
   if (view === '5.2') return wrap(<SynchronizationStudyTool />)
   if (view === '5.3') return wrap(<ParallelTasksStudyTool />)
   if (view === '6.1') return wrap(<InstructionSchedulingStudyTool />)
+  if (view === '8.1') return wrap(<RegisterAllocationStudyTool />)
 
   return <ChapterSelect onSelect={setView} />
 }
