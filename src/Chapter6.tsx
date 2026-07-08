@@ -2021,6 +2021,595 @@ w := z+4`}</Pre>
 )
 
 /* ================================================================== *
+ *  Tab 6 · Playbook — memorable recipes, line-by-line annotations,
+ *  and one hard end-to-end worked example (HLF list scheduling)
+ * ================================================================== */
+
+/* A code line paired with a plain-English "what / why" on its right. */
+const AnnotatedCode: React.FC<{ rows: { code: string; what: React.ReactNode }[] }> = ({ rows }) => (
+  <div className="rounded-lg border overflow-hidden">
+    {rows.map((r, i) => (
+      <div key={i} className="grid sm:grid-cols-2 border-b last:border-b-0">
+        <pre className="font-mono text-[11.5px] px-3 py-1.5 bg-muted/40 whitespace-pre overflow-x-auto leading-relaxed">
+          {r.code}
+        </pre>
+        <div className="px-3 py-1.5 text-[12px] text-muted-foreground leading-relaxed border-t sm:border-t-0 sm:border-l">
+          {r.what}
+        </div>
+      </div>
+    ))}
+  </div>
+)
+
+/* The "remember it as" card: a mnemonic + a short ordered recipe. */
+const Recipe: React.FC<{ mnemonic: string; steps: React.ReactNode[]; when?: React.ReactNode }> = ({
+  mnemonic,
+  steps,
+  when,
+}) => (
+  <Panel className="bg-primary/5 border-primary/30">
+    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Remember it as</div>
+    <div className="font-semibold text-primary mb-2 text-[15px]">“{mnemonic}”</div>
+    <ol className="text-sm space-y-1.5">
+      {steps.map((s, i) => (
+        <li key={i} className="flex gap-2 leading-relaxed">
+          <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-semibold flex items-center justify-center">
+            {i + 1}
+          </span>
+          <span>{s}</span>
+        </li>
+      ))}
+    </ol>
+    {when && <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{when}</p>}
+  </Panel>
+)
+
+/* ---- the hard end-to-end example graph ---------------------------- *
+ *  Machine: 1 multiplier (delay 2), 2 adders (delay 1).
+ *  Three independent mults compete for the single mult unit; only HLF
+ *  keeps the two critical mults (feeding the long add chain) ahead of
+ *  the decoy mult n6.
+ * ------------------------------------------------------------------ */
+
+const hardNodes: GNode[] = [
+  { id: 'n1', x: 40, y: 30, label: 'n1', sub: 'r6' },
+  { id: 'n2', x: 150, y: 30, label: 'n2', sub: 'r6' },
+  { id: 'n6', x: 300, y: 30, label: 'n6', sub: 'r3' },
+  { id: 'n3', x: 95, y: 110, label: 'n3', sub: 'r4' },
+  { id: 'n4', x: 95, y: 185, label: 'n4', sub: 'r3' },
+  { id: 'n5', x: 95, y: 260, label: 'n5', sub: 'r2' },
+  { id: 'n7', x: 230, y: 260, label: 'n7', sub: 'r1' },
+]
+const hardEdges: GEdge[] = [
+  { from: 'n1', to: 'n3' },
+  { from: 'n2', to: 'n3' },
+  { from: 'n3', to: 'n4' },
+  { from: 'n4', to: 'n5' },
+  { from: 'n5', to: 'n7' },
+  { from: 'n6', to: 'n7' },
+]
+const hardCritical = [
+  edgeKey({ from: 'n1', to: 'n3' }),
+  edgeKey({ from: 'n3', to: 'n4' }),
+  edgeKey({ from: 'n4', to: 'n5' }),
+  edgeKey({ from: 'n5', to: 'n7' }),
+]
+
+interface HardRow {
+  cycle: number
+  mul: string
+  add: string
+}
+const hardTrace: HardRow[] = [
+  { cycle: 1, mul: 'n1  m1 = a·b', add: '—' },
+  { cycle: 2, mul: 'n2  m2 = c·d', add: '—' },
+  { cycle: 3, mul: 'n6  m3 = g·h', add: '—' },
+  { cycle: 4, mul: '—', add: 'n3  s1 = m1+m2' },
+  { cycle: 5, mul: '—', add: 'n4  s2 = s1+e' },
+  { cycle: 6, mul: '—', add: 'n5  s3 = s2+f' },
+  { cycle: 7, mul: '—', add: 'n7  s4 = m3+s3' },
+]
+
+const hardStepsMeta: AlgoStep[] = [
+  {
+    title: 'Setup — count[], remaining[], seed W',
+    facts: [
+      <>count (unfinished preds): n1:0 n2:0 n6:0 n3:2 n4:1 n5:1 n7:2</>,
+      <>remaining (HLF, backward): n1:6 n2:6 n3:4 n4:3 n5:2 n6:3 n7:1</>,
+      <>Machine: 1 mult unit (delay 2), 2 add units (delay 1).</>,
+    ],
+    tags: [{ label: 'W[1]', items: ['n1', 'n2', 'n6'] }],
+    note: (
+      <>
+        The three source mults are all ready at cycle 1 — but the mult unit takes only one. HLF orders them by{' '}
+        <Code>remaining</Code>: n1=n2=6 sit on the critical path, n6=3 is a decoy.
+      </>
+    ),
+  },
+  {
+    title: 'Cycle 1 — pick the largest remaining',
+    tags: [
+      { label: 'ready', items: ['n1', 'n2', 'n6'] },
+      { label: 'issued', items: ['n1'], tone: 'good' },
+      { label: 'deferred', items: ['n2', 'n6'], tone: 'warn' },
+    ],
+    facts: [<>count[n3]: 2→1, earliest[n3] = max(0, 1+2) = 3</>],
+    note: (
+      <>
+        n1 wins the tie-break by <Code>remaining=6</Code>. n2 and n6 find no free mult unit → requeued for next cycle
+        (the <Code>else W[nextc] ∪= {'{x}'}</Code> branch).
+      </>
+    ),
+  },
+  {
+    title: 'Cycle 2 — second critical mult',
+    tags: [
+      { label: 'ready', items: ['n2', 'n6'] },
+      { label: 'issued', items: ['n2'], tone: 'good' },
+      { label: 'deferred', items: ['n6'], tone: 'warn' },
+    ],
+    facts: [<>count[n3]: 1→0 → ready! earliest[n3] = max(3, 2+2) = 4 → W[4]</>],
+    note: <>Again HLF prefers n2 (r=6) over the decoy n6 (r=3). n3 now has both operands scheduled.</>,
+  },
+  {
+    title: 'Cycle 3 — finally the decoy mult',
+    tags: [
+      { label: 'ready', items: ['n6'] },
+      { label: 'issued', items: ['n6'], tone: 'good' },
+    ],
+    facts: [<>count[n7]: 2→1, earliest[n7] = max(0, 3+2) = 5</>],
+    note: <>n6 issues only once nothing more urgent competes for the mult unit. n7 still waits on n5.</>,
+  },
+  {
+    title: 'Cycle 4 — the add chain begins',
+    tags: [
+      { label: 'ready', items: ['n3'] },
+      { label: 'issued', items: ['n3'], tone: 'good' },
+    ],
+    facts: [<>count[n4]: 1→0 → ready! earliest[n4] = max(0, 4+1) = 5 → W[5]</>],
+    note: <>n3 was due at cycle 4 (both mults finished, delay 2). One add unit is plenty — the chain is sequential.</>,
+  },
+  {
+    title: 'Cycle 5 — n4',
+    tags: [
+      { label: 'ready', items: ['n4'] },
+      { label: 'issued', items: ['n4'], tone: 'good' },
+    ],
+    facts: [<>count[n5]: 1→0 → ready! earliest[n5] = max(0, 5+1) = 6 → W[6]</>],
+  },
+  {
+    title: 'Cycle 6 — n5, the last chain add',
+    tags: [
+      { label: 'ready', items: ['n5'] },
+      { label: 'issued', items: ['n5'], tone: 'good' },
+    ],
+    facts: [<>count[n7]: 1→0 → ready! earliest[n7] = max(5, 6+1) = 7 → W[7]</>],
+    note: <>n7 needed BOTH n6 (ready cycle 5) and n5 (ready cycle 7) — the later one, n5, sets its start.</>,
+  },
+  {
+    title: 'Cycle 7 — n7, done',
+    tags: [
+      { label: 'ready', items: ['n7'] },
+      { label: 'issued', items: ['n7'], tone: 'good' },
+    ],
+    note: <>Wcount hits 0. n7 finishes at 7+1 = 8.</>,
+  },
+  {
+    title: 'Result — HLF vs. an arbitrary choice',
+    facts: [<>HLF length = 8 cycles.</>, <>Picking the decoy n6 first (a legal "arbitrary" move) → 9 cycles.</>],
+    note: (
+      <>
+        Every cycle the decoy delays a critical mult, it pushes the whole n3→n4→n5→n7 chain back by one. HLF avoids
+        that by always spending the scarce mult unit on the highest-<Code>remaining</Code> instruction.
+      </>
+    ),
+  },
+]
+
+const HardWorkedExample: React.FC = () => (
+  <AlgoStepper
+    steps={hardStepsMeta}
+    rightLabel="schedule built so far (1 mult unit, 2 add units)"
+    right={(i) => {
+      const rows = hardTrace.slice(0, Math.min(i, 7))
+      return (
+        <Table
+          head={['cyc', 'mult unit', 'add unit']}
+          rows={rows.length ? rows.map((r) => [String(r.cycle), r.mul, r.add]) : [['—', '(nothing issued yet)', '']]}
+        />
+      )
+    }}
+  />
+)
+
+const PlaybookSection: React.FC = () => (
+  <div className="space-y-4">
+    <div className="rounded-lg border p-4 bg-muted/30">
+      <p className="text-sm leading-relaxed">
+        One tab, every algorithm in §6.1: a <strong>memorable recipe</strong> to reach for in the exam, a{' '}
+        <strong>line-by-line</strong> reading of the pseudocode, and — at the end — one <strong>hard worked example</strong>{' '}
+        run all the way through. The cycle-by-cycle steppers live on the other tabs; this tab is the "how do I actually
+        do this by hand" companion.
+      </p>
+    </div>
+
+    {/* ---------- list_schedule ---------- */}
+    <div className="rounded-lg border p-4">
+      <h3 className="text-base font-semibold mb-2">1 · list_schedule() — one basic block (a DAG)</h3>
+      <Recipe
+        mnemonic="Count down, fire the ready, defer if the unit is full"
+        steps={[
+          <>
+            <strong>Count</strong> each node's predecessors into <Code>count[n]</Code>; set <Code>earliest[n]=0</Code>.
+            Put every <Code>count=0</Code> node in the cycle-1 ready list.
+          </>,
+          <>
+            <strong>Each cycle</strong>, pull ready nodes. For each: is a free unit of its <em>type</em> available? If
+            yes → <strong>issue</strong> it this cycle; if no → push it to <em>next</em> cycle.
+          </>,
+          <>
+            When you issue <Code>x</Code>, <strong>wake its successors</strong>: <Code>count[y]--</Code>,{' '}
+            <Code>earliest[y] = max(earliest[y], cycle + delay(x))</Code>. When a successor's count hits 0 it becomes
+            ready at cycle <Code>earliest[y]</Code>.
+          </>,
+          <>
+            If a cycle has no ready node, it's a <strong>bubble</strong> — advance the cycle and try again. Stop when
+            everything has issued.
+          </>,
+        ]}
+        when={
+          <>
+            <strong>Tie-break rule:</strong> when several are ready and units are scarce, the plain algorithm picks
+            <em> arbitrarily</em>. In the exam, always break ties with <Code>remaining[]</Code> (that's HLF, below) —
+            it's what gets the optimal answer.
+          </>
+        }
+      />
+      <div className="mt-3">
+        <AnnotatedCode
+          rows={[
+            {
+              code: 'for each n: count[n]=0; earliest[n]=0',
+              what: <>Every node starts with 0 known predecessors and an earliest-start of cycle 0.</>,
+            },
+            {
+              code: 'for each (n1,n2)∈E:\n   count[n2]++\n   successor[n1] ∪= {n2}',
+              what: (
+                <>
+                  One predecessor edge into <Code>n2</Code> ⇒ bump its count. Also record that <Code>n1</Code> feeds{' '}
+                  <Code>n2</Code>, so we can wake <Code>n2</Code> later.
+                </>
+              ),
+            },
+            {
+              code: 'W[0..MaxC-1] = ∅;  Wcount = 0',
+              what: (
+                <>
+                  <Code>MaxC = max delay + 1</Code> rotating "ready lists", one per upcoming cycle. <Code>Wcount</Code>{' '}
+                  counts instructions still to issue.
+                </>
+              ),
+            },
+            {
+              code: 'for each n: if count[n]==0:\n   W[0] ∪= {n}; Wcount++',
+              what: <>Sources (no predecessors) are ready immediately — seed cycle 0's list.</>,
+            },
+            {
+              code: 'while Wcount > 0:',
+              what: <>Keep going until every instruction has been issued.</>,
+            },
+            {
+              code: '  while W[cW]==∅:\n     c++; cW=(c)%MaxC',
+              what: <>Current ready list empty ⇒ this cycle is a bubble; advance to the next non-empty cycle.</>,
+            },
+            {
+              code: '  remove arbitrary x from W[cW]',
+              what: (
+                <>
+                  Take a ready instruction. <strong>HLF picks the one with the largest <Code>remaining</Code>.</strong>
+                </>
+              ),
+            },
+            {
+              code: '  if free unit of type(x) in cycle c:\n     instr[c] ∪= {x}; Wcount--',
+              what: <>A matching functional unit is free ⇒ issue x now, one fewer left to schedule.</>,
+            },
+            {
+              code: '     for each y∈successor[x]:\n        count[y]--\n        earliest[y]=max(earliest[y],c+delay(x))\n        if count[y]==0: W[earliest[y]] ∪= {y}',
+              what: (
+                <>
+                  Wake each consumer: it needs x's result at <Code>c+delay(x)</Code> at the earliest. When its last
+                  producer clears, drop it into the ready list for that cycle.
+                </>
+              ),
+            },
+            {
+              code: '  else: W[nextc] ∪= {x}',
+              what: <>No free unit this cycle ⇒ requeue x for next cycle (a resource stall, not a data stall).</>,
+            },
+          ]}
+        />
+      </div>
+    </div>
+
+    {/* ---------- find_remaining / HLF ---------- */}
+    <div className="rounded-lg border p-4">
+      <h3 className="text-base font-semibold mb-2">2 · find_remaining() — the HLF priority (longest tail)</h3>
+      <Recipe
+        mnemonic="Start at the sinks, walk backward, longest chain wins"
+        steps={[
+          <>
+            Seed <Code>remaining[n] = delay(n)</Code> for every node; count each node's <em>successors</em> (we go
+            backward now). Put every <em>sink</em> (no successors) in the worklist.
+          </>,
+          <>
+            Pop <Code>x</Code>, read its tail length <Code>r = remaining[x]</Code>. For each predecessor{' '}
+            <Code>y</Code>: <Code>remaining[y] = max(remaining[y], r + delay(y))</Code>.
+          </>,
+          <>
+            Only enqueue <Code>y</Code> once <em>all</em> of its successors are processed (<Code>count[y]==0</Code>) —
+            then <Code>remaining[y]</Code> is final.
+          </>,
+          <>
+            The node with the biggest <Code>remaining</Code> is on the <strong>critical path</strong>. Feed these
+            numbers into list scheduling's tie-break: highest remaining goes first.
+          </>,
+        ]}
+        when={
+          <>
+            <strong>By hand:</strong> label every sink with its own delay, then work upward — each node = its own delay
+            + the max label of any successor. That's it.
+          </>
+        }
+      />
+      <div className="mt-3">
+        <AnnotatedCode
+          rows={[
+            {
+              code: 'for each n: count[n]=0; remaining[n]=delay(n)',
+              what: <>A node's tail is at least its own latency. count now tallies successors, not predecessors.</>,
+            },
+            {
+              code: 'for each (n1,n2)∈E:\n   count[n1]++\n   predecessor[n2] ∪= {n1}',
+              what: (
+                <>
+                  Edge <Code>n1→n2</Code>: <Code>n1</Code> has one more successor; remember <Code>n1</Code> as a
+                  predecessor of <Code>n2</Code> so we can climb back to it.
+                </>
+              ),
+            },
+            {
+              code: 'for each n: if count[n]==0: W ∪= {n}',
+              what: <>Sinks (nothing depends on them) are where the backward walk begins.</>,
+            },
+            {
+              code: 'while W≠∅:\n   remove x; r = remaining[x]',
+              what: <>Take a node whose full tail length is now known.</>,
+            },
+            {
+              code: '   for each y∈predecessor[x]:\n      count[y]--\n      remaining[y]=max(remaining[y], r+delay(y))',
+              what: (
+                <>
+                  Going through <Code>x</Code> costs <Code>delay(y)</Code> to reach <Code>y</Code> plus <Code>x</Code>'s
+                  tail <Code>r</Code>. Keep the longest such path.
+                </>
+              ),
+            },
+            {
+              code: '      if count[y]==0: W ∪= {y}',
+              what: (
+                <>
+                  Enqueue <Code>y</Code> only after every successor has updated it — guarantees its label is the true
+                  maximum.
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
+    </div>
+
+    {/* ---------- trace selection ---------- */}
+    <div className="rounded-lg border p-4">
+      <h3 className="text-base font-semibold mb-2">3 · Trace selection — pick the hot path across blocks</h3>
+      <Recipe
+        mnemonic="Seed the hottest, grow both ways, stop at cold / seen / loop-back"
+        steps={[
+          <>
+            Give every statement an <strong>estimated execution count</strong> (branch probability × parent's count;
+            loops get a trip count).
+          </>,
+          <>
+            <strong>Seed</strong> = the unscheduled statement with the globally highest estimate.
+          </>,
+          <>
+            <strong>Grow forward:</strong> repeatedly follow the successor with the highest estimate. Stop at a
+            dead-end, an already-scheduled node, or a <em>backward (loop) edge</em>.
+          </>,
+          <>
+            <strong>Grow backward</strong> from the seed the same way (highest-estimate predecessor, same stopping
+            rules). The resulting path is one trace — schedule it as a single block, then repeat on what's left.
+          </>,
+        ]}
+        when={
+          <>
+            <strong>The estimate on an edge</strong> = source node's count × edge probability. You always walk toward
+            the bigger number; a rarely-taken edge (e.g. <Code>B→D</Code> at 9 vs. <Code>A→D</Code> at 90) is never
+            grown into.
+          </>
+        }
+      />
+      <p className="text-sm mt-3 mb-2">
+        Then schedule the trace as one big block and patch the paths that leave/enter it with{' '}
+        <strong>compensation code</strong>:
+      </p>
+      <Table
+        head={['Situation', 'Rule', 'Fix']}
+        rows={[
+          [
+            <>An instruction that was <em>before</em> a split moves to <em>after</em> it</>,
+            <Tag tone="warn">Rule 1 (off-trace)</Tag>,
+            <>copy it onto the off-trace edge, in original trace order</>,
+          ],
+          [
+            <>An instruction that was <em>below</em> a join moves to <em>above</em> it</>,
+            <Tag tone="warn">Rule 2 (join)</Tag>,
+            <>copy it onto the join edge, after the last instruction already there</>,
+          ],
+          [
+            <>An instruction after a split moves to before it</>,
+            <Bad>Restriction</Bad>,
+            <>forbidden — unless the variable it writes is dead on the off-trace edge</>,
+          ],
+        ]}
+      />
+    </div>
+
+    {/* ---------- loop_schedule + kernel_schedule ---------- */}
+    <div className="rounded-lg border p-4">
+      <h3 className="text-base font-semibold mb-2">4 · loop_schedule() + kernel_schedule() — software pipelining</h3>
+      <Recipe
+        mnemonic="Topo-order, take the latest predecessor, wrap when it overflows L"
+        steps={[
+          <>
+            <strong>Topologically sort</strong> the loop body (producers before consumers).
+          </>,
+          <>
+            For each <Code>x</Code>, look at every predecessor <Code>y</Code>: it finishes at{' '}
+            <Code>thisS = S[y]+delay(y)</Code> in iteration <Code>thisI = I[y]</Code>. If <Code>thisS ≥ L</Code> it{' '}
+            <strong>wraps</strong>: <Code>thisI += thisS/L</Code>, <Code>thisS %= L</Code>. Keep the latest{' '}
+            <Code>(earlyS, earlyI)</Code>.
+          </>,
+          <>
+            Place <Code>x</Code> at the first free unit at cycle <Code>≥ earlyS</Code> (wrapping the kernel if needed);
+            if it had to wrap, bump <Code>I[x]</Code> by 1.
+          </>,
+          <>
+            <strong>kernel_schedule wraps this:</strong> start <Code>L</Code> at the lower bound{' '}
+            <Code>max(⌈#t/mt⌉, max slope Z(c))</Code>, run <Code>loop_schedule</Code> on the graph with back-edges
+            removed, and <strong>reject &amp; bump L</strong> if any node on a dependence cycle slipped to a later
+            iteration. First L that fits wins.
+          </>,
+        ]}
+        when={
+          <>
+            <strong>Slope of a recurrence cycle:</strong> <Code>Z(c) = Σ delay / Σ cross</Code> — the cost the loop
+            can never beat. The kernel length is the worse of the resource bound and every cycle's slope.
+          </>
+        }
+      />
+      <div className="mt-3">
+        <AnnotatedCode
+          rows={[
+            {
+              code: 'topologically sort G',
+              what: <>Schedule producers before consumers so predecessor times are known when you place a node.</>,
+            },
+            {
+              code: 'for each x in topo order:\n   earlyS=0; earlyI=0',
+              what: <>Track the earliest cycle-within-kernel and iteration-offset x is allowed to start at.</>,
+            },
+            {
+              code: '   for each predecessor y of x:\n      thisS = S[y]+delay(y); thisI = I[y]',
+              what: (
+                <>
+                  y's result is ready <Code>delay(y)</Code> cycles after it starts, in y's own iteration.
+                </>
+              ),
+            },
+            {
+              code: '      if thisS >= L:\n         thisI += thisS/L; thisS %= L',
+              what: (
+                <>
+                  If that time spills past the kernel length <Code>L</Code>, carry the overflow into later iterations
+                  (integer div) and keep the remainder as the in-kernel cycle.
+                </>
+              ),
+            },
+            {
+              code: '      if thisI>earlyI or thisS>earlyS:\n         earlyI=thisI; earlyS=thisS',
+              what: <>Respect the most-demanding predecessor: x can't start before the latest of them.</>,
+            },
+            {
+              code: '   co = first free-unit cycle ≥ earlyS (wrap)',
+              what: <>Find an actual slot on a matching unit at or after the earliest legal cycle.</>,
+            },
+            {
+              code: '   S[x]=co\n   I[x]=(co<earlyS)? earlyI+1 : earlyI',
+              what: (
+                <>
+                  Record the slot. If placement had to wrap past the kernel end, x belongs to the next iteration ⇒
+                  bump its offset.
+                </>
+              ),
+            },
+          ]}
+        />
+        <p className="text-sm mt-3 mb-2">The outer search that guarantees cyclic dependences are respected:</p>
+        <AnnotatedCode
+          rows={[
+            {
+              code: 'LB = max( maxₜ⌈#t/mt⌉ , maxc Z(c) )',
+              what: <>Lower bound = worse of the resource bound and the tightest recurrence slope.</>,
+            },
+            {
+              code: 'G0 = G minus each cycle\'s closing edge',
+              what: <>loop_schedule needs a DAG; drop the loop-carried back-edges to break the cycles.</>,
+            },
+            {
+              code: 'for L = LB .. N:\n   loop_schedule(G0, L, S, I)',
+              what: <>Try the smallest kernel length first, then grow. N (instruction count) always works, so it terminates.</>,
+            },
+            {
+              code: '   if every cycle closes within L: return',
+              what: (
+                <>
+                  Accept iff no recurrence node was pushed to <Code>I&gt;0</Code> and each cycle's last instruction
+                  finishes in time for its first next iteration; otherwise try <Code>L+1</Code>.
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
+    </div>
+
+    {/* ---------- the hard worked example ---------- */}
+    <div className="rounded-lg border p-4">
+      <h3 className="text-base font-semibold mb-2">5 · Hard worked example — HLF list scheduling, end to end</h3>
+      <p className="text-sm mb-2">
+        Machine: <strong>1 multiplier</strong> (delay 2) and <strong>2 adders</strong> (delay 1). Seven instructions —{' '}
+        <strong>three</strong> independent mults competing for the single mult unit, feeding a long add chain:
+      </p>
+      <Pre>{`n1  m1 = a · b     (mul, delay 2)      n3  s1 = m1 + m2   (add)   dep n1,n2
+n2  m2 = c · d     (mul, delay 2)      n4  s2 = s1 + e    (add)   dep n3
+n6  m3 = g · h     (mul, delay 2)      n5  s3 = s2 + f    (add)   dep n4
+                                       n7  s4 = m3 + s3   (add)   dep n5,n6`}</Pre>
+      <p className="text-sm mt-2 mb-3">
+        The critical path <Code>n1/n2 → n3 → n4 → n5 → n7</Code> is highlighted. <Code>n6</Code> is a{' '}
+        <strong>decoy</strong> mult: also ready at cycle 1, but off the critical path (<Code>remaining=3</Code> vs.{' '}
+        <Code>6</Code>). Only HLF keeps it out of the way. Node labels show <Code>remaining[]</Code>.
+      </p>
+      <FlowGraph
+        nodes={hardNodes}
+        edges={hardEdges}
+        width={360}
+        height={310}
+        activeEdges={hardCritical}
+        maxW={360}
+      />
+      <p className="text-sm font-medium mt-4 mb-2">Now run it, cycle by cycle:</p>
+      <HardWorkedExample />
+      <Panel className="text-sm leading-relaxed mt-3">
+        <Good>Takeaway.</Good> The whole difficulty is the <em>single</em> mult unit shared by three ready mults.
+        HLF's <Code>remaining[]</Code> is what tells you to spend cycles 1–2 on the critical n1, n2 and only cycle 3 on
+        the decoy n6. Break that tie the other way and the entire add chain slides one cycle later — 8 becomes 9.
+      </Panel>
+    </div>
+  </div>
+)
+
+/* ================================================================== *
  *  Root
  * ================================================================== */
 
@@ -2029,6 +2618,7 @@ const tabs: TabDef[] = [
   { id: 'list', label: 'List scheduling (6.1.1)', render: () => <ListSchedulingSection /> },
   { id: 'trace', label: 'Trace scheduling (6.1.2)', render: () => <TraceSchedulingSection /> },
   { id: 'loops', label: 'Loops & pipelining (6.1.3)', render: () => <LoopSchedulingSection /> },
+  { id: 'playbook', label: 'Playbook & recipes', render: () => <PlaybookSection /> },
   { id: 'questions', label: 'Questions', render: () => <Questions /> },
 ]
 
